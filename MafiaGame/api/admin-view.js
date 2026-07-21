@@ -1,5 +1,3 @@
-const { kv } = require("@vercel/kv");
-
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 module.exports = async (req, res) => {
@@ -13,7 +11,17 @@ module.exports = async (req, res) => {
     return res.status(401).json({ error: "Şifrə yalnışdır." });
   }
 
-  const assignments = (await kv.get("mafia:lastAssignments")) || [];
+  let assignments = [];
+  try {
+    const { kv } = require("@vercel/kv");
+    assignments = (await kv.get("mafia:lastAssignments")) || [];
+  } catch (kvErr) {
+    return res.status(200).json({
+      ok: true,
+      assignments: [],
+      message: "Vercel KV qoşulmayıb, ona görə keçmiş bölgülər saxlanılmır. Storage tabından KV yaradıb layihəyə bağla.",
+    });
+  }
 
   if (assignments.length === 0) {
     return res.status(200).json({ ok: true, assignments: [], message: "Hələ heç bir bölgü göndərilməyib." });

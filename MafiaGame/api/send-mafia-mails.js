@@ -1,5 +1,4 @@
 const nodemailer = require("nodemailer");
-const { kv } = require("@vercel/kv");
 const { shuffle, buildEmailHtml } = require("./_lib/mailTemplate");
 
 const SENDER_EMAIL = process.env.SENDER_EMAIL;
@@ -53,9 +52,14 @@ module.exports = async (req, res) => {
       }
     }
 
-    // Admin görüntüsü üçün Vercel KV-də saxla (serverless funksiyalar öz yaddaşını saxlamır)
-    await kv.set("mafia:lastAssignments", assignments);
-
+// Admin görüntüsü üçün Vercel KV-də saxla (serverless funksiyalar öz yaddaşını saxlamır)
+    // KV qoşulmayıbsa, mail göndərmə prosesi buna görə dayanmasın deyə try/catch içindədir.
+    try {
+      const { kv } = require("@vercel/kv");
+      await kv.set("mafia:lastAssignments", assignments);
+    } catch (kvErr) {
+      console.warn("KV yadda saxlanmadı (admin görüntüsü işləməyəcək):", kvErr.message);
+    }
     res.status(200).json({ ok: true, results });
   } catch (err) {
     res.status(500).json({ error: err.message });
