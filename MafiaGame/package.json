@@ -1,0 +1,9 @@
+{
+  "name": "mafia-vercel",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "nodemailer": "^6.9.13",
+    "@vercel/kv": "^1.0.1"
+  }
+}
