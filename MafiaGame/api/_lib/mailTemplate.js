@@ -6,9 +6,8 @@ const crypto = require("crypto");
 const TEAM_VISIBILITY_ROLES = ["komissar", "mafia"];
 
 function generateGameId() {
-  return `GAME-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
+  return crypto.randomInt(1000, 10000).toString();
 }
-
 function formatAzDateTime(date = new Date()) {
   const parts = new Intl.DateTimeFormat("az-AZ", {
     timeZone: "Asia/Baku",
@@ -231,14 +230,11 @@ function buildEmailHtml(assignment, allAssignments, gameId) {
             <div style="
               margin-top:14px;
               padding:12px;
-              background:#faf7f1;
-              border:1px solid #eee9df;
               border-radius:10px;
             ">
               <p style="
                 margin:0;
                 font-size:10px;
-                letter-spacing:0.12em;
                 text-transform:uppercase;
                 color:#9a9488;
               ">
