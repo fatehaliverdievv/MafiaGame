@@ -25,7 +25,7 @@ function roleLogo(role) {
     komissar: "🎖️",
     mafia: "🎩",
     doktor: "💉",
-    məşuqə: "🌙👩‍🦳",
+    məşuqə: "🌙",
     bomj: "🥃",
     manyak: "🔪",
     vətəndaş: "👤",
@@ -82,12 +82,11 @@ function buildEmailHtml(assignment, allAssignments) {
       </div>
 
       <div style="padding:12px 28px 0;">
-        <p style="margin:22px 0 0; font-size:15px; color:#6b665c;">Salam,</p>
-        <p style="margin:2px 0 0; font-size:20px; font-weight:700; color:#262420;">${assignment.name}</p>
+        <p style="margin:22px 0 0; font-size:15px; color:#6b665c;">Salam, ${assignment.name}</p>
       </div>
 
       <div style="padding:26px 28px 6px; text-align:center;">
-        <div style="width:96px; height:96px; margin:0 auto; border-radius:50%; background:#faf1ee; display:flex; align-items:center; justify-content:center; font-size:44px;">
+        <div style="width:96px; height:96px; margin:0 auto; display:flex; align-items:center; justify-content:center; font-size:44px;">
           ${roleLogo(assignment.role)}
         </div>
         <p style="margin:18px 0 2px; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#9a9488;">Sənin rolun</p>
