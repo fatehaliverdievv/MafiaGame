@@ -102,10 +102,6 @@ function buildEmailHtml(assignment, allAssignments) {
                   font-size:15px;
                   color:#262420;
                 ">
-                  <span style="margin-right:8px;">
-                    ${roleLogo(t.role)}
-                  </span>
-
                   <span style="font-weight:600;">
                     ${t.name}
                   </span>
