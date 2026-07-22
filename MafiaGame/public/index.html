@@ -4,272 +4,796 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mafia — İdarəetmə Paneli</title>
+
 <style>
   :root{
-    --bg: #f6f5f2;
-    --panel: #ffffff;
-    --line: #e4e1da;
-    --text: #262420;
-    --muted: #8a8478;
-    --accent: #a83232;
-    --accent-soft: #f3e3e1;
-    --good: #3f7d5c;
-    --off: #c9c4ba;
-    --font-display: 'Georgia', 'Iowan Old Style', serif;
-    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-    --font-mono: 'SF Mono', 'Consolas', monospace;
+    --bg: #f4f6f9;
+    --panel: rgba(255,255,255,0.92);
+    --panel-solid: #ffffff;
+    --line: #e7e9ef;
+    --text: #1f2937;
+    --muted: #7b8494;
+    --accent: #b4232c;
+    --accent-dark: #8f1720;
+    --accent-soft: #fff0f1;
+    --good: #21845a;
+    --good-dark: #176844;
+    --good-soft: #eaf8f1;
+    --warning: #b7791f;
+    --off: #cdd2da;
+    --danger-soft: #fff1f2;
+    --shadow-sm: 0 8px 24px rgba(31, 41, 55, 0.06);
+    --shadow-md: 0 18px 50px rgba(31, 41, 55, 0.10);
+    --radius-xl: 22px;
+    --radius-lg: 16px;
+    --radius-md: 12px;
+    --font-display: Georgia, "Times New Roman", serif;
+    --font-body: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   }
 
-  * { box-sizing: border-box; }
+  *{
+    box-sizing: border-box;
+  }
+
+  html{
+    scroll-behavior: smooth;
+  }
 
   body{
-    margin:0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font-body);
-    min-height: 100vh;
-    padding: 48px 24px 80px;
-  }
-
-  .wrap{ max-width: 980px; margin: 0 auto; }
-
-  header{
-    display:flex;
-    align-items:flex-end;
-    justify-content:space-between;
-    gap: 24px;
-    margin-bottom: 32px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .kicker{
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin: 0 0 8px;
-  }
-
-  h1{
-    font-family: var(--font-display);
-    font-size: 32px;
-    font-weight: 400;
     margin: 0;
-  }
-
-  .grid{
-    display:grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 22px;
-  }
-
-  @media (max-width: 860px){
-    .grid{ grid-template-columns: 1fr; }
-  }
-
-  .panel{
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 22px;
-    margin-bottom: 22px;
-  }
-
-  .panel h2{
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--muted);
-    margin: 0 0 16px;
-    font-weight: 600;
-  }
-
-  .add-row{
-    display:flex;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-
-  input{
-    background: #fff;
-    border: 1px solid var(--line);
+    min-height: 100vh;
     color: var(--text);
-    padding: 10px 12px;
-    border-radius: 7px;
-    font-size: 14px;
     font-family: var(--font-body);
-    width: 100%;
+    background:
+      radial-gradient(circle at 8% 0%, rgba(180,35,44,0.10), transparent 28%),
+      radial-gradient(circle at 92% 12%, rgba(33,132,90,0.08), transparent 24%),
+      var(--bg);
+    padding: 34px 20px 70px;
   }
-  input:focus{
-    outline: none;
-    border-color: var(--accent);
+
+  button,
+  input{
+    font: inherit;
   }
 
   button{
-    font-family: var(--font-body);
-    font-size: 14px;
-    font-weight: 600;
-    border: none;
-    border-radius: 7px;
-    padding: 10px 18px;
-    cursor: pointer;
-    transition: transform 0.1s ease, opacity 0.15s ease;
-    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
   }
-  button:active{ transform: scale(0.97); }
 
-  .btn-primary{ background: var(--accent); color: #fff; }
-  .btn-primary:hover{ background: #922b2b; }
-
-  .btn-ghost{
-    background: transparent;
-    border: 1px solid var(--line);
-    color: var(--text);
+  .wrap{
+    width: min(1120px, 100%);
+    margin: 0 auto;
   }
-  .btn-ghost:hover{ border-color: var(--muted); }
 
-  .btn-send{
-    background: var(--good);
+  .hero{
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    min-height: 190px;
+    margin-bottom: 24px;
+    padding: 34px;
     color: #fff;
-    width: 100%;
-    padding: 13px;
-    font-size: 15px;
+    border-radius: 28px;
+    background:
+      linear-gradient(135deg, rgba(25,28,35,0.98), rgba(64,28,31,0.96)),
+      #1f2027;
+    box-shadow: var(--shadow-md);
   }
-  .btn-send:hover{ background: #356b4d; }
-  .btn-send:disabled{ background: var(--off); cursor: not-allowed; }
 
-  ul.list{ list-style:none; margin:0; padding:0; }
+  .hero::before,
+  .hero::after{
+    content: "";
+    position: absolute;
+    border-radius: 999px;
+    pointer-events: none;
+  }
+
+  .hero::before{
+    width: 280px;
+    height: 280px;
+    right: -90px;
+    top: -120px;
+    background: rgba(255,255,255,0.07);
+  }
+
+  .hero::after{
+    width: 180px;
+    height: 180px;
+    right: 120px;
+    bottom: -130px;
+    background: rgba(180,35,44,0.35);
+  }
+
+  .hero-copy,
+  .hero-stats{
+    position: relative;
+    z-index: 1;
+  }
+
+  .kicker{
+    margin: 0 0 10px;
+    color: #f2b6ba;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  h1{
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(34px, 5vw, 52px);
+    font-weight: 400;
+    line-height: 1.02;
+    letter-spacing: -0.03em;
+  }
+
+  .hero-text{
+    max-width: 570px;
+    margin: 14px 0 0;
+    color: rgba(255,255,255,0.66);
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .hero-stats{
+    display: grid;
+    grid-template-columns: repeat(2, minmax(112px, 1fr));
+    gap: 12px;
+    min-width: 260px;
+  }
+
+  .stat-card{
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 16px;
+    background: rgba(255,255,255,0.07);
+    backdrop-filter: blur(10px);
+  }
+
+  .stat-value{
+    display: block;
+    margin-bottom: 4px;
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .stat-label{
+    color: rgba(255,255,255,0.58);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .grid{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .panel{
+    position: relative;
+    overflow: hidden;
+    padding: 24px;
+    border: 1px solid rgba(231,233,239,0.95);
+    border-radius: var(--radius-xl);
+    background: var(--panel);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(16px);
+  }
+
+  .panel + .panel{
+    margin-top: 0;
+  }
+
+  .panel-header{
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .panel-title-wrap{
+    min-width: 0;
+  }
+
+  .eyebrow{
+    display: block;
+    margin-bottom: 5px;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .panel h2{
+    margin: 0;
+    font-size: 19px;
+    letter-spacing: -0.02em;
+  }
+
+  .panel-subtitle{
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .count-badge{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;
+    height: 32px;
+    padding: 0 10px;
+    color: var(--accent);
+    border: 1px solid #f2d5d7;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .add-row{
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .player-add-row{
+    grid-template-columns: minmax(120px, 0.8fr) minmax(180px, 1.25fr) auto;
+  }
+
+  .input-wrap{
+    position: relative;
+  }
+
+  input{
+    width: 100%;
+    height: 44px;
+    padding: 0 13px;
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    outline: none;
+    background: rgba(255,255,255,0.92);
+    transition:
+      border-color 0.18s ease,
+      box-shadow 0.18s ease,
+      background 0.18s ease;
+  }
+
+  input::placeholder{
+    color: #a1a8b3;
+  }
+
+  input:hover{
+    border-color: #d4d8df;
+  }
+
+  input:focus{
+    border-color: rgba(180,35,44,0.65);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(180,35,44,0.10);
+  }
+
+  button{
+    border: 0;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition:
+      transform 0.12s ease,
+      box-shadow 0.18s ease,
+      background 0.18s ease,
+      opacity 0.18s ease;
+  }
+
+  button:active{
+    transform: translateY(1px) scale(0.99);
+  }
+
+  button:focus-visible,
+  input:focus-visible{
+    outline: 3px solid rgba(180,35,44,0.18);
+    outline-offset: 2px;
+  }
+
+  .btn-primary{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 17px;
+    color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    box-shadow: 0 8px 20px rgba(180,35,44,0.18);
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .btn-primary:hover{
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(180,35,44,0.24);
+  }
+
+  .btn-primary .plus{
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 1;
+  }
+
+  ul.list{
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
 
   li.row{
-    display:flex;
-    align-items:center;
-    gap: 10px;
-    padding: 9px 0;
-    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 58px;
+    margin-bottom: 9px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgba(255,255,255,0.72);
+    transition:
+      transform 0.16s ease,
+      border-color 0.16s ease,
+      background 0.16s ease,
+      opacity 0.16s ease;
   }
-  li.row:last-child{ border-bottom:none; }
-  li.row.disabled{ opacity: 0.4; }
+
+  li.row:last-child{
+    margin-bottom: 0;
+  }
+
+  li.row:hover{
+    transform: translateY(-1px);
+    border-color: #d9dde5;
+    background: #fff;
+  }
+
+  li.row.disabled{
+    opacity: 0.48;
+    background: #f7f8fa;
+  }
+
+  .row-icon{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    color: var(--accent);
+    border-radius: 11px;
+    background: var(--accent-soft);
+    font-size: 16px;
+    font-weight: 800;
+  }
+
+  .email-row .row-icon{
+    color: var(--good);
+    background: var(--good-soft);
+  }
 
   .row-label{
-    flex:1;
-    font-size: 14px;
+    flex: 1;
+    min-width: 0;
   }
-  .role-row .row-label{ font-weight: 600; }
-  .email-row .row-label{ font-family: var(--font-mono); font-size: 13px; }
 
-  /* toggle switch */
-  .toggle{ position: relative; display:inline-block; width: 38px; height: 21px; flex-shrink:0; }
-  .toggle input{ display:none; }
+  .role-name{
+    display: block;
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .player-name{
+    display: block;
+    margin-bottom: 3px;
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .player-email{
+    display: block;
+    overflow: hidden;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .toggle{
+    position: relative;
+    display: inline-block;
+    width: 42px;
+    height: 24px;
+    flex: 0 0 42px;
+  }
+
+  .toggle input{
+    display: none;
+  }
+
   .slider{
-    position:absolute; inset:0;
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
     background: var(--off);
-    border-radius: 20px;
     cursor: pointer;
-    transition: background 0.15s ease;
+    transition: background 0.18s ease;
   }
+
   .slider::before{
-    content:"";
-    position:absolute;
-    height: 15px; width:15px;
-    left: 3px; top: 3px;
+    content: "";
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
     background: #fff;
-    border-radius:50%;
-    transition: transform 0.15s ease;
+    box-shadow: 0 2px 6px rgba(31,41,55,0.18);
+    transition: transform 0.18s ease;
   }
-  .toggle input:checked + .slider{ background: var(--good); }
-  .toggle input:checked + .slider::before{ transform: translateX(17px); }
+
+  .toggle input:checked + .slider{
+    background: var(--good);
+  }
+
+  .toggle input:checked + .slider::before{
+    transform: translateX(18px);
+  }
 
   .icon-btn{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    padding: 0;
+    color: #9aa1ad;
     background: transparent;
-    border: none;
-    color: var(--muted);
-    font-size: 14px;
-    padding: 4px 6px;
-    cursor: pointer;
+    font-size: 16px;
   }
-  .icon-btn:hover{ color: var(--accent); }
 
-  .empty{ text-align:center; color: var(--muted); padding: 24px 0; font-size: 13px; }
-
-  .status-line{
-    font-family: var(--font-mono);
-    font-size: 12.5px;
-    color: var(--muted);
-    margin-top: 12px;
-    white-space: pre-wrap;
+  .icon-btn:hover{
+    color: var(--accent);
+    background: var(--danger-soft);
   }
-  .status-line.ok{ color: var(--good); }
-  .status-line.err{ color: var(--accent); }
+
+  .empty{
+    padding: 34px 18px;
+    color: var(--muted);
+    border: 1px dashed #d9dde5;
+    border-radius: 16px;
+    background: rgba(248,249,251,0.7);
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .empty-icon{
+    display: block;
+    margin-bottom: 8px;
+    font-size: 24px;
+    filter: grayscale(1);
+    opacity: 0.55;
+  }
+
+  .send-panel{
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 24px;
+    margin-top: 24px;
+    padding: 26px;
+  }
+
+  .send-copy{
+    min-width: 0;
+  }
+
+  .send-copy h2{
+    margin-bottom: 7px;
+  }
 
   .server-note{
-    font-size: 12.5px;
+    margin: 0;
     color: var(--muted);
-    line-height: 1.5;
-    margin-top: 10px;
+    font-size: 13px;
+    line-height: 1.6;
   }
+
   .server-note code{
+    padding: 3px 7px;
+    color: var(--accent);
+    border-radius: 7px;
     background: var(--accent-soft);
-    padding: 1px 6px;
-    border-radius: 4px;
     font-family: var(--font-mono);
+    font-size: 11.5px;
+  }
+
+  .btn-send{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-width: 260px;
+    min-height: 50px;
+    padding: 0 22px;
+    color: #fff;
+    background: linear-gradient(135deg, var(--good), var(--good-dark));
+    box-shadow: 0 10px 24px rgba(33,132,90,0.18);
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  .btn-send:hover{
+    transform: translateY(-1px);
+    box-shadow: 0 14px 28px rgba(33,132,90,0.24);
+  }
+
+  .btn-send:disabled{
+    transform: none;
+    color: #fff;
+    background: var(--off);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+
+  .status-line{
+    grid-column: 1 / -1;
+    display: none;
+    margin-top: 2px;
+    padding: 13px 15px;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #f8f9fb;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+  }
+
+  .status-line:not(:empty){
+    display: block;
+  }
+
+  .status-line.ok{
+    color: var(--good-dark);
+    border-color: #cce9da;
+    background: var(--good-soft);
+  }
+
+  .status-line.err{
+    color: var(--accent-dark);
+    border-color: #f0cfd2;
+    background: var(--danger-soft);
+  }
+
+  .footer-note{
+    margin-top: 18px;
+    color: #9aa1ad;
+    font-size: 11px;
+    text-align: center;
+  }
+
+  @media (max-width: 900px){
+    .hero{
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .hero-stats{
+      width: 100%;
+      min-width: 0;
+    }
+
+    .grid{
+      grid-template-columns: 1fr;
+    }
+
+    .send-panel{
+      grid-template-columns: 1fr;
+    }
+
+    .btn-send{
+      width: 100%;
+      min-width: 0;
+    }
+  }
+
+  @media (max-width: 620px){
+    body{
+      padding: 16px 12px 42px;
+    }
+
+    .hero{
+      min-height: auto;
+      padding: 24px 20px;
+      border-radius: 22px;
+    }
+
+    .panel{
+      padding: 18px;
+      border-radius: 18px;
+    }
+
+    .add-row,
+    .player-add-row{
+      grid-template-columns: 1fr;
+    }
+
+    .btn-primary{
+      width: 100%;
+    }
+
+    .hero-stats{
+      grid-template-columns: 1fr 1fr;
+    }
+
+    li.row{
+      padding: 10px;
+    }
+
+    .row-icon{
+      display: none;
+    }
+
+    .send-panel{
+      padding: 20px;
+    }
   }
 </style>
 </head>
+
 <body>
 <div class="wrap">
 
-  <header>
-    <div>
-      <p class="kicker">Mafia Oyunu</p>
+  <header class="hero">
+    <div class="hero-copy">
+      <p class="kicker">Mafia Oyunu · Nəzarət Mərkəzi</p>
       <h1>İdarəetmə Paneli</h1>
+      <p class="hero-text">
+        Rolları və iştirakçıları idarə et, aktiv olanları seç və bir toxunuşla
+        təsadüfi bölgünü başladaraq nəticələri e-poçtla göndər.
+      </p>
+    </div>
+
+    <div class="hero-stats">
+      <div class="stat-card">
+        <span class="stat-value" id="roleStat">0</span>
+        <span class="stat-label">Aktiv rol</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="playerStat">0</span>
+        <span class="stat-label">Aktiv iştirakçı</span>
+      </div>
     </div>
   </header>
 
-  <div class="grid">
-    <!-- ROLES -->
-    <div class="panel">
-      <h2>Rollar</h2>
-      <div class="add-row">
-        <input id="inpRole" type="text" placeholder="Rol adı (məs: mafia, serif)">
-        <button class="btn-primary" onclick="addRole()">Əlavə et</button>
+  <main>
+    <div class="grid">
+
+      <!-- ROLES -->
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <span class="eyebrow">Rolların idarəsi</span>
+            <h2>Rollar</h2>
+            <p class="panel-subtitle">Oyunda istifadə ediləcək rolları əlavə et və aktivləşdir.</p>
+          </div>
+          <span class="count-badge" id="roleCount">0</span>
+        </div>
+
+        <div class="add-row">
+          <input
+            id="inpRole"
+            type="text"
+            placeholder="Rol adı, məsələn: Mafia"
+            autocomplete="off"
+          >
+          <button class="btn-primary" onclick="addRole()">
+            <span class="plus">+</span>
+            Əlavə et
+          </button>
+        </div>
+
+        <ul class="list" id="roleRows"></ul>
+
+        <div id="roleEmpty" class="empty" style="display:none;">
+          <span class="empty-icon">♟</span>
+          Hələ rol əlavə olunmayıb.
+        </div>
+      </section>
+
+      <!-- PLAYERS -->
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <span class="eyebrow">İştirakçılar</span>
+            <h2>Oyunçular</h2>
+            <p class="panel-subtitle">Ad və e-poçt ünvanını daxil edərək iştirakçı əlavə et.</p>
+          </div>
+          <span class="count-badge" id="playerCount">0</span>
+        </div>
+
+        <div class="add-row player-add-row">
+          <input
+            id="inpName"
+            type="text"
+            placeholder="Ad"
+            autocomplete="off"
+          >
+          <input
+            id="inpEmail"
+            type="email"
+            placeholder="ornek@gmail.com"
+            autocomplete="off"
+          >
+          <button class="btn-primary" onclick="addPlayer()">
+            <span class="plus">+</span>
+            Əlavə et
+          </button>
+        </div>
+
+        <ul class="list" id="playerRows"></ul>
+
+        <div id="playerEmpty" class="empty" style="display:none;">
+          <span class="empty-icon">♙</span>
+          Hələ iştirakçı əlavə olunmayıb.
+        </div>
+      </section>
+
+    </div>
+
+    <!-- SEND -->
+    <section class="panel send-panel">
+      <div class="send-copy">
+        <span class="eyebrow">Başlat</span>
+        <h2>Oyunu başlat</h2>
+        <p class="server-note">
+           <code>Qeyd</code>
+          Aktiv rol və iştirakçı sayı eyni olmalıdır.
+        </p>
       </div>
-      <ul class="list" id="roleRows"></ul>
-      <div id="roleEmpty" class="empty" style="display:none;">Hələ rol əlavə olunmayıb.</div>
-    </div>
 
-    <!-- PLAYERS -->
-    <div class="panel">
-      <h2>İştirakçılar</h2>
-      <div class="add-row">
-        <input id="inpName" type="text" placeholder="Ad">
-        <input id="inpEmail" type="email" placeholder="ornek@gmail.com">
-        <button class="btn-primary" onclick="addPlayer()">Əlavə et</button>
-      </div>
-      <ul class="list" id="playerRows"></ul>
-      <div id="playerEmpty" class="empty" style="display:none;">Hələ iştirakçı əlavə olunmayıb.</div>
-    </div>
-  </div>
+      <button class="btn-send" id="sendBtn" onclick="sendMails()">
+        <span>✉</span>
+        Mailləri göndər !
+      </button>
 
-  <div class="panel">
-    <h2>Göndər</h2>
-    <button class="btn-send" id="sendBtn" onclick="sendMails()">Rolları paylaşdır və mail göndər</button>
-    <div class="server-note">
-      Bu düymə <code>/api/send-mafia-mails</code> serverless funksiyasına sorğu göndərir.
-    </div>
-    <div id="statusLine" class="status-line"></div>
-  </div>
+      <div id="statusLine" class="status-line"></div>
+    </section>
+  </main>
 
-  <div class="panel">
-    <h2>Admin — Rol Bölgüsünə Bax</h2>
-    <div class="add-row">
-      <input id="inpAdminPass" type="password" placeholder="Admin şifrəsi">
-      <button class="btn-ghost" onclick="viewAssignments()">Göstər</button>
-    </div>
-    <div id="adminResult"></div>
-  </div>
-
+  <div class="footer-note">Aliverdievv</div>
 </div>
 
 <script>
@@ -280,9 +804,25 @@
   let roles = [];
   let players = [];
 
+  function makeId(){
+    if(window.crypto && crypto.randomUUID){
+      return crypto.randomUUID();
+    }
+    return Date.now() + Math.random().toString(16).slice(2);
+  }
+
   function load(){
-    try{ roles = JSON.parse(localStorage.getItem(ROLE_KEY)) || []; }catch(e){ roles = []; }
-    try{ players = JSON.parse(localStorage.getItem(PLAYER_KEY)) || []; }catch(e){ players = []; }
+    try{
+      roles = JSON.parse(localStorage.getItem(ROLE_KEY)) || [];
+    }catch(e){
+      roles = [];
+    }
+
+    try{
+      players = JSON.parse(localStorage.getItem(PLAYER_KEY)) || [];
+    }catch(e){
+      players = [];
+    }
   }
 
   function persist(){
@@ -291,86 +831,197 @@
   }
 
   function addRole(){
-    const inp = document.getElementById('inpRole');
+    const inp = document.getElementById("inpRole");
     const name = inp.value.trim();
-    if(!name) return;
-    roles.push({ id: Date.now()+Math.random().toString(16).slice(2), name, enabled: true });
+
+    if(!name){
+      inp.focus();
+      return;
+    }
+
+    roles.push({
+      id: makeId(),
+      name,
+      enabled: true
+    });
+
     inp.value = "";
-    persist(); render();
+    persist();
+    render();
+    inp.focus();
   }
 
   function addPlayer(){
-    const nameInp = document.getElementById('inpName');
-    const emailInp = document.getElementById('inpEmail');
+    const nameInp = document.getElementById("inpName");
+    const emailInp = document.getElementById("inpEmail");
+
     const name = nameInp.value.trim();
     const email = emailInp.value.trim();
-    if(!name){ alert("Ad boş ola bilməz."); return; }
-    if(!email || !email.includes('@')) { alert("Düzgün email ünvanı yaz."); return; }
-    players.push({ id: Date.now()+Math.random().toString(16).slice(2), name, email, enabled: true });
+
+    if(!name){
+      alert("Ad boş ola bilməz.");
+      nameInp.focus();
+      return;
+    }
+
+    if(!email || !email.includes("@")){
+      alert("Düzgün e-poçt ünvanı yaz.");
+      emailInp.focus();
+      return;
+    }
+
+    players.push({
+      id: makeId(),
+      name,
+      email,
+      enabled: true
+    });
+
     nameInp.value = "";
     emailInp.value = "";
-    persist(); render();
+
+    persist();
+    render();
+    nameInp.focus();
   }
 
   function toggleRole(id){
-    const r = roles.find(x=>x.id===id); if(r) r.enabled = !r.enabled;
-    persist(); render();
+    const role = roles.find(item => item.id === id);
+
+    if(role){
+      role.enabled = !role.enabled;
+    }
+
+    persist();
+    render();
   }
+
   function togglePlayer(id){
-    const p = players.find(x=>x.id===id); if(p) p.enabled = !p.enabled;
-    persist(); render();
+    const player = players.find(item => item.id === id);
+
+    if(player){
+      player.enabled = !player.enabled;
+    }
+
+    persist();
+    render();
   }
-  function removeRole(id){ roles = roles.filter(x=>x.id!==id); persist(); render(); }
-  function removePlayer(id){ players = players.filter(x=>x.id!==id); persist(); render(); }
+
+  function removeRole(id){
+    roles = roles.filter(item => item.id !== id);
+    persist();
+    render();
+  }
+
+  function removePlayer(id){
+    players = players.filter(item => item.id !== id);
+    persist();
+    render();
+  }
 
   function render(){
-    const roleTbody = document.getElementById('roleRows');
-    const roleEmpty = document.getElementById('roleEmpty');
-    if(roles.length === 0){ roleTbody.innerHTML=""; roleEmpty.style.display='block'; }
-    else{
-      roleEmpty.style.display='none';
-      roleTbody.innerHTML = roles.map(r => `
-        <li class="row role-row ${r.enabled?'':'disabled'}">
-          <span class="row-label">${escapeHtml(r.name)}</span>
-          <label class="toggle">
-            <input type="checkbox" ${r.enabled?'checked':''} onchange="toggleRole('${r.id}')">
+    const roleRows = document.getElementById("roleRows");
+    const roleEmpty = document.getElementById("roleEmpty");
+    const playerRows = document.getElementById("playerRows");
+    const playerEmpty = document.getElementById("playerEmpty");
+
+    const activeRoleCount = roles.filter(role => role.enabled).length;
+    const activePlayerCount = players.filter(player => player.enabled).length;
+
+    document.getElementById("roleCount").textContent = roles.length;
+    document.getElementById("playerCount").textContent = players.length;
+    document.getElementById("roleStat").textContent = activeRoleCount;
+    document.getElementById("playerStat").textContent = activePlayerCount;
+
+    if(roles.length === 0){
+      roleRows.innerHTML = "";
+      roleEmpty.style.display = "block";
+    }else{
+      roleEmpty.style.display = "none";
+
+      roleRows.innerHTML = roles.map(role => `
+        <li class="row role-row ${role.enabled ? "" : "disabled"}">
+          <span class="row-icon">♠</span>
+
+          <span class="row-label">
+            <span class="role-name">${escapeHtml(role.name)}</span>
+          </span>
+
+          <label class="toggle" title="${role.enabled ? "Deaktiv et" : "Aktiv et"}">
+            <input
+              type="checkbox"
+              ${role.enabled ? "checked" : ""}
+              onchange="toggleRole('${role.id}')"
+            >
             <span class="slider"></span>
           </label>
-          <button class="icon-btn" onclick="removeRole('${r.id}')">✕</button>
+
+          <button
+            class="icon-btn"
+            title="Sil"
+            aria-label="${escapeHtml(role.name)} rolunu sil"
+            onclick="removeRole('${role.id}')"
+          >✕</button>
         </li>
-      `).join('');
+      `).join("");
     }
 
-    const playerTbody = document.getElementById('playerRows');
-    const playerEmpty = document.getElementById('playerEmpty');
-    if(players.length === 0){ playerTbody.innerHTML=""; playerEmpty.style.display='block'; }
-    else{
-      playerEmpty.style.display='none';
-      playerTbody.innerHTML = players.map(p => `
-        <li class="row email-row ${p.enabled?'':'disabled'}">
-          <span class="row-label"><strong>${escapeHtml(p.name)}</strong> — <span style="font-family: var(--font-mono); font-size:12.5px; color:var(--muted);">${escapeHtml(p.email)}</span></span>
-          <label class="toggle">
-            <input type="checkbox" ${p.enabled?'checked':''} onchange="togglePlayer('${p.id}')">
+    if(players.length === 0){
+      playerRows.innerHTML = "";
+      playerEmpty.style.display = "block";
+    }else{
+      playerEmpty.style.display = "none";
+
+      playerRows.innerHTML = players.map(player => `
+        <li class="row email-row ${player.enabled ? "" : "disabled"}">
+          <span class="row-icon">●</span>
+
+          <span class="row-label">
+            <span class="player-name">${escapeHtml(player.name)}</span>
+            <span class="player-email">${escapeHtml(player.email)}</span>
+          </span>
+
+          <label class="toggle" title="${player.enabled ? "Deaktiv et" : "Aktiv et"}">
+            <input
+              type="checkbox"
+              ${player.enabled ? "checked" : ""}
+              onchange="togglePlayer('${player.id}')"
+            >
             <span class="slider"></span>
           </label>
-          <button class="icon-btn" onclick="removePlayer('${p.id}')">✕</button>
+
+          <button
+            class="icon-btn"
+            title="Sil"
+            aria-label="${escapeHtml(player.name)} iştirakçısını sil"
+            onclick="removePlayer('${player.id}')"
+          >✕</button>
         </li>
-      `).join('');
+      `).join("");
     }
   }
 
-  function escapeHtml(str){
-    const div = document.createElement('div');
-    div.textContent = str ?? "";
+  function escapeHtml(value){
+    const div = document.createElement("div");
+    div.textContent = value ?? "";
     return div.innerHTML;
   }
 
   async function sendMails(){
-    const activeRoles = roles.filter(r=>r.enabled).map(r=>r.name);
-    const activePlayers = players.filter(p=>p.enabled).map(p=>({ name: p.name, email: p.email }));
+    const activeRoles = roles
+      .filter(role => role.enabled)
+      .map(role => role.name);
 
-    const statusLine = document.getElementById('statusLine');
-    const sendBtn = document.getElementById('sendBtn');
+    const activePlayers = players
+      .filter(player => player.enabled)
+      .map(player => ({
+        name: player.name,
+        email: player.email
+      }));
+
+    const statusLine = document.getElementById("statusLine");
+    const sendBtn = document.getElementById("sendBtn");
+
     statusLine.className = "status-line";
     statusLine.textContent = "";
 
@@ -379,76 +1030,72 @@
       statusLine.textContent = "Ən azı 1 aktiv rol və 1 aktiv iştirakçı olmalıdır.";
       return;
     }
+
     if(activeRoles.length !== activePlayers.length){
       statusLine.className = "status-line err";
-      statusLine.textContent = `Aktiv rol sayı (${activeRoles.length}) aktiv iştirakçı sayına (${activePlayers.length}) bərabər deyil.`;
+      statusLine.textContent =
+        `Aktiv rol sayı (${activeRoles.length}) aktiv iştirakçı sayına (${activePlayers.length}) bərabər deyil.`;
       return;
     }
 
     sendBtn.disabled = true;
-    statusLine.textContent = "Göndərilir...";
+    sendBtn.innerHTML = "<span>⏳</span> Göndərilir...";
+    statusLine.textContent = "Serverə sorğu göndərilir...";
 
     try{
-      const res = await fetch(SEND_ENDPOINT, {
+      const response = await fetch(SEND_ENDPOINT, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roles: activeRoles, players: activePlayers })
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          roles: activeRoles,
+          players: activePlayers
+        })
       });
-      const data = await res.json();
-      if(!res.ok) throw new Error(data.error || "Naməlum xəta");
+
+      const data = await response.json();
+
+      if(!response.ok){
+        throw new Error(data.error || "Naməlum xəta");
+      }
 
       statusLine.className = "status-line ok";
-      statusLine.textContent = `Göndərildi:\n` + data.results.map(r => `${r.name} (${r.email}) -> ${r.status}`).join('\n');
-    }catch(err){
+      statusLine.textContent =
+        "Uğurla göndərildi:\n" +
+        data.results
+          .map(result => `${result.name} (${result.email}) → ${result.status}`)
+          .join("\n");
+
+    }catch(error){
       statusLine.className = "status-line err";
-      statusLine.textContent = "Xəta: " + err.message + "\n(Server işə salınıbmı? bax: server.js)";
+      statusLine.textContent =
+        "Xəta: " + error.message +
+        "\nServer funksiyasının aktiv olduğuna əmin ol.";
+
     }finally{
       sendBtn.disabled = false;
+      sendBtn.innerHTML = "<span>✉</span> Rolları paylaşdır və göndər";
     }
   }
 
-  async function viewAssignments(){
-    const pass = document.getElementById('inpAdminPass').value;
-    const resultBox = document.getElementById('adminResult');
-    resultBox.innerHTML = "";
-
-    if(!pass){
-      resultBox.innerHTML = `<div class="status-line err">Şifrəni daxil et.</div>`;
-      return;
+  document.getElementById("inpRole").addEventListener("keydown", event => {
+    if(event.key === "Enter"){
+      addRole();
     }
+  });
 
-    try{
-      const res = await fetch("/api/admin-view", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: pass })
-      });
-      const data = await res.json();
-
-      if(!res.ok){
-        resultBox.innerHTML = `<div class="status-line err">${escapeHtml(data.error || "Xəta baş verdi.")}</div>`;
-        return;
-      }
-
-      if(!data.assignments || data.assignments.length === 0){
-        resultBox.innerHTML = `<div class="status-line">${escapeHtml(data.message || "Nəticə yoxdur.")}</div>`;
-        return;
-      }
-
-      resultBox.innerHTML = `
-        <ul class="list" style="margin-top:14px;">
-          ${data.assignments.map(a => `
-            <li class="row">
-              <span class="row-label"><strong>${escapeHtml(a.name)}</strong> — <span style="font-family: var(--font-mono); font-size:12.5px; color:var(--muted);">${escapeHtml(a.email)}</span></span>
-              <span class="role-badge" style="background:var(--accent-soft); border-color:var(--accent); padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600;">${escapeHtml(a.role)}</span>
-            </li>
-          `).join('')}
-        </ul>
-      `;
-    }catch(err){
-      resultBox.innerHTML = `<div class="status-line err">Server ilə əlaqə yoxdur: ${escapeHtml(err.message)}</div>`;
+  document.getElementById("inpName").addEventListener("keydown", event => {
+    if(event.key === "Enter"){
+      document.getElementById("inpEmail").focus();
     }
-  }
+  });
+
+  document.getElementById("inpEmail").addEventListener("keydown", event => {
+    if(event.key === "Enter"){
+      addPlayer();
+    }
+  });
 
   load();
   render();

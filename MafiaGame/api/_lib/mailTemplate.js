@@ -1,23 +1,21 @@
 // Paylaşılan məntiq: rol loqoları + HTML mail şablonu
 
-const MAFIA_ROLE_NAMES = ["mafia", "manyak"];
-const SERIF_ROLE_NAME = "serif";
-const CAVUS_ROLE_NAME = "cavus";
-
-const ROLE_LOGOS = {
-  hekim: "🩺",
-  serif: "🎖️",
-  cavus: "🛡️",
-  manyak: "🔪",
-  mafia: "🕶️",
-  doktor: "💉",
-  mesuge: "🌙",
-  vetendas: "👤",
-};
-const DEFAULT_LOGO = "🎭";
+// "Komanda görmə" qaydası: bu siyahıdakı rollardan olan hər kəs
+// eyni rola sahib digərlərini görür (Komissarlar bir-birini, Mafialar bir-birini).
+// Manyak, Doktor, Bomj, Məşuqə, Vətəndaş bu qrupa daxil deyil — heç kimi görmür.
+const TEAM_VISIBILITY_ROLES = ["komissar", "mafia"];
 
 function roleLogo(role) {
-  return ROLE_LOGOS[role.toLowerCase()] || DEFAULT_LOGO;
+  const ROLE_LOGOS = {
+    komissar: "🎖️",
+    mafia: "🕶️",
+    doktor: "💉",
+    məşuqə: "🌙",
+    bomj: "🥃",
+    manyak: "🔪",
+    vətəndaş: "👤",
+  };
+  return ROLE_LOGOS[role.toLowerCase()] || "🎭";
 }
 
 function shuffle(arr) {
@@ -30,21 +28,19 @@ function shuffle(arr) {
 }
 
 function buildEmailHtml(assignment, allAssignments) {
-  const isMafia = MAFIA_ROLE_NAMES.some(
-    (r) => r.toLowerCase() === assignment.role.toLowerCase()
-  );
+  const roleLower = assignment.role.toLowerCase();
+  const inTeamGroup = TEAM_VISIBILITY_ROLES.includes(roleLower);
 
   let teammatesHtml = "";
-  if (isMafia) {
+  if (inTeamGroup) {
     const teammates = allAssignments.filter(
-      (a) =>
-        a.email !== assignment.email &&
-        MAFIA_ROLE_NAMES.some((r) => r.toLowerCase() === a.role.toLowerCase())
+      (a) => a.email !== assignment.email && a.role.toLowerCase() === roleLower
     );
     if (teammates.length > 0) {
+      const label = roleLower === "mafia" ? "Sənin komandan" : "Digər komissarlar";
       teammatesHtml = `
         <div style="margin-top:20px; padding:16px 18px; background:#faf1ef; border:1px solid #e8d3ce; border-radius:10px;">
-          <p style="margin:0 0 8px; font-size:13px; letter-spacing:0.04em; text-transform:uppercase; color:#a83232; font-weight:600;">Sənin komandan</p>
+          <p style="margin:0 0 8px; font-size:13px; letter-spacing:0.04em; text-transform:uppercase; color:#a83232; font-weight:600;">${label}</p>
           ${teammates
             .map(
               (t) =>
@@ -55,21 +51,7 @@ function buildEmailHtml(assignment, allAssignments) {
     } else {
       teammatesHtml = `
         <div style="margin-top:20px; padding:16px 18px; background:#faf1ef; border:1px solid #e8d3ce; border-radius:10px;">
-          <p style="margin:0; font-size:14px; color:#262420;">Komandanda başqa oyunçu yoxdur, təksən.</p>
-        </div>`;
-    }
-  }
-
-  let cavusHtml = "";
-  if (assignment.role.toLowerCase() === SERIF_ROLE_NAME.toLowerCase()) {
-    const cavus = allAssignments.find(
-      (a) => a.role.toLowerCase() === CAVUS_ROLE_NAME.toLowerCase()
-    );
-    if (cavus) {
-      cavusHtml = `
-        <div style="margin-top:20px; padding:16px 18px; background:#f0f4f2; border:1px solid #d3e0d9; border-radius:10px;">
-          <p style="margin:0 0 8px; font-size:13px; letter-spacing:0.04em; text-transform:uppercase; color:#3f7d5c; font-weight:600;">Sənin çavuşun</p>
-          <p style="margin:0; font-size:15px; color:#262420;">${roleLogo(cavus.role)} ${cavus.name}</p>
+          <p style="margin:0; font-size:14px; color:#262420;">Bu oyunda tək başınasan, komandanda başqa kimsə yoxdur.</p>
         </div>`;
     }
   }
@@ -91,7 +73,6 @@ function buildEmailHtml(assignment, allAssignments) {
 
       <div style="padding:8px 28px 32px;">
         ${teammatesHtml}
-        ${cavusHtml}
         <p style="margin:28px 0 0; text-align:center; font-size:13px; color:#8a8478;">Uğurlar, oyun başlasın 🎲</p>
       </div>
 
