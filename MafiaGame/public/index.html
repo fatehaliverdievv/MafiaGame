@@ -486,6 +486,69 @@
     background: var(--danger-soft);
   }
 
+  .edit-row{
+    align-items: stretch;
+    border-color: rgba(180,35,44,0.28);
+    background: #fff;
+    box-shadow: 0 8px 22px rgba(31,41,55,0.06);
+  }
+
+  .edit-fields{
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .edit-fields.player-edit-fields{
+    grid-template-columns: minmax(110px, 0.8fr) minmax(170px, 1.25fr);
+  }
+
+  .edit-input{
+    height: 38px;
+    padding: 0 11px;
+    font-size: 13px;
+  }
+
+  .edit-actions{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mini-btn{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .mini-btn.save{
+    color: #fff;
+    background: var(--good);
+  }
+
+  .mini-btn.save:hover{
+    background: var(--good-dark);
+  }
+
+  .mini-btn.cancel{
+    color: var(--muted);
+    border: 1px solid var(--line);
+    background: #fff;
+  }
+
+  .mini-btn.cancel:hover{
+    color: var(--accent);
+    border-color: #efc7ca;
+    background: var(--danger-soft);
+  }
+
   .empty{
     padding: 34px 18px;
     color: var(--muted);
@@ -666,6 +729,20 @@
       display: none;
     }
 
+    .edit-row{
+      flex-wrap: wrap;
+    }
+
+    .edit-fields.player-edit-fields{
+      grid-template-columns: 1fr;
+      width: 100%;
+    }
+
+    .edit-actions{
+      width: 100%;
+      justify-content: flex-end;
+    }
+
     .send-panel{
       padding: 20px;
     }
@@ -804,6 +881,9 @@
   let roles = [];
   let players = [];
 
+  let editingRoleId = null;
+  let editingPlayerId = null;
+
   function makeId(){
     if(window.crypto && crypto.randomUUID){
       return crypto.randomUUID();
@@ -909,12 +989,108 @@
 
   function removeRole(id){
     roles = roles.filter(item => item.id !== id);
+
+    if(editingRoleId === id){
+      editingRoleId = null;
+    }
+
     persist();
     render();
   }
 
   function removePlayer(id){
     players = players.filter(item => item.id !== id);
+
+    if(editingPlayerId === id){
+      editingPlayerId = null;
+    }
+
+    persist();
+    render();
+  }
+
+  function startEditRole(id){
+    editingPlayerId = null;
+    editingRoleId = id;
+    render();
+
+    const input = document.getElementById(`edit-role-${id}`);
+    if(input){
+      input.focus();
+      input.select();
+    }
+  }
+
+  function cancelEditRole(){
+    editingRoleId = null;
+    render();
+  }
+
+  function saveRoleEdit(id){
+    const input = document.getElementById(`edit-role-${id}`);
+    const newName = input?.value.trim();
+
+    if(!newName){
+      alert("Rol adı boş ola bilməz.");
+      input?.focus();
+      return;
+    }
+
+    const role = roles.find(item => item.id === id);
+
+    if(role){
+      role.name = newName;
+    }
+
+    editingRoleId = null;
+    persist();
+    render();
+  }
+
+  function startEditPlayer(id){
+    editingRoleId = null;
+    editingPlayerId = id;
+    render();
+
+    const input = document.getElementById(`edit-player-name-${id}`);
+    if(input){
+      input.focus();
+      input.select();
+    }
+  }
+
+  function cancelEditPlayer(){
+    editingPlayerId = null;
+    render();
+  }
+
+  function savePlayerEdit(id){
+    const nameInput = document.getElementById(`edit-player-name-${id}`);
+    const emailInput = document.getElementById(`edit-player-email-${id}`);
+
+    const newName = nameInput?.value.trim();
+    const newEmail = emailInput?.value.trim();
+
+    if(!newName){
+      alert("Oyunçu adı boş ola bilməz.");
+      nameInput?.focus();
+      return;
+    }
+
+    if(!newEmail || !newEmail.includes("@")){
+      alert("Düzgün e-poçt ünvanı yaz.");
+      emailInput?.focus();
+      return;
+    }
+
+    const player = players.find(item => item.id === id);
+
+    if(player){
+      player.name = newName;
+      player.email = newEmail;
+    }
+
+    editingPlayerId = null;
     persist();
     render();
   }
@@ -939,31 +1115,75 @@
     }else{
       roleEmpty.style.display = "none";
 
-      roleRows.innerHTML = roles.map(role => `
-        <li class="row role-row ${role.enabled ? "" : "disabled"}">
-          <span class="row-icon">♠</span>
+      roleRows.innerHTML = roles.map(role => {
+        if(editingRoleId === role.id){
+          return `
+            <li class="row role-row edit-row">
+              <span class="row-icon">✎</span>
 
-          <span class="row-label">
-            <span class="role-name">${escapeHtml(role.name)}</span>
-          </span>
+              <div class="edit-fields">
+                <input
+                  class="edit-input"
+                  id="edit-role-${role.id}"
+                  type="text"
+                  value="${escapeHtml(role.name)}"
+                  maxlength="60"
+                  onkeydown="handleRoleEditKey(event, '${role.id}')"
+                >
+              </div>
 
-          <label class="toggle" title="${role.enabled ? "Deaktiv et" : "Aktiv et"}">
-            <input
-              type="checkbox"
-              ${role.enabled ? "checked" : ""}
-              onchange="toggleRole('${role.id}')"
-            >
-            <span class="slider"></span>
-          </label>
+              <div class="edit-actions">
+                <button
+                  class="mini-btn save"
+                  title="Yadda saxla"
+                  aria-label="Rol dəyişikliklərini yadda saxla"
+                  onclick="saveRoleEdit('${role.id}')"
+                >✓</button>
 
-          <button
-            class="icon-btn"
-            title="Sil"
-            aria-label="${escapeHtml(role.name)} rolunu sil"
-            onclick="removeRole('${role.id}')"
-          >✕</button>
-        </li>
-      `).join("");
+                <button
+                  class="mini-btn cancel"
+                  title="Ləğv et"
+                  aria-label="Redaktəni ləğv et"
+                  onclick="cancelEditRole()"
+                >✕</button>
+              </div>
+            </li>
+          `;
+        }
+
+        return `
+          <li class="row role-row ${role.enabled ? "" : "disabled"}">
+            <span class="row-icon">♠</span>
+
+            <span class="row-label">
+              <span class="role-name">${escapeHtml(role.name)}</span>
+            </span>
+
+            <label class="toggle" title="${role.enabled ? "Deaktiv et" : "Aktiv et"}">
+              <input
+                type="checkbox"
+                ${role.enabled ? "checked" : ""}
+                onchange="toggleRole('${role.id}')"
+              >
+              <span class="slider"></span>
+            </label>
+
+            <button
+              class="icon-btn"
+              title="Redaktə et"
+              aria-label="${escapeHtml(role.name)} rolunu redaktə et"
+              onclick="startEditRole('${role.id}')"
+            >✎</button>
+
+            <button
+              class="icon-btn"
+              title="Sil"
+              aria-label="${escapeHtml(role.name)} rolunu sil"
+              onclick="removeRole('${role.id}')"
+            >✕</button>
+          </li>
+        `;
+      }).join("");
     }
 
     if(players.length === 0){
@@ -972,32 +1192,107 @@
     }else{
       playerEmpty.style.display = "none";
 
-      playerRows.innerHTML = players.map(player => `
-        <li class="row email-row ${player.enabled ? "" : "disabled"}">
-          <span class="row-icon">●</span>
+      playerRows.innerHTML = players.map(player => {
+        if(editingPlayerId === player.id){
+          return `
+            <li class="row email-row edit-row">
+              <span class="row-icon">✎</span>
 
-          <span class="row-label">
-            <span class="player-name">${escapeHtml(player.name)}</span>
-            <span class="player-email">${escapeHtml(player.email)}</span>
-          </span>
+              <div class="edit-fields player-edit-fields">
+                <input
+                  class="edit-input"
+                  id="edit-player-name-${player.id}"
+                  type="text"
+                  value="${escapeHtml(player.name)}"
+                  maxlength="80"
+                  placeholder="Oyunçu adı"
+                  onkeydown="handlePlayerEditKey(event, '${player.id}')"
+                >
 
-          <label class="toggle" title="${player.enabled ? "Deaktiv et" : "Aktiv et"}">
-            <input
-              type="checkbox"
-              ${player.enabled ? "checked" : ""}
-              onchange="togglePlayer('${player.id}')"
-            >
-            <span class="slider"></span>
-          </label>
+                <input
+                  class="edit-input"
+                  id="edit-player-email-${player.id}"
+                  type="email"
+                  value="${escapeHtml(player.email)}"
+                  maxlength="160"
+                  placeholder="E-poçt ünvanı"
+                  onkeydown="handlePlayerEditKey(event, '${player.id}')"
+                >
+              </div>
 
-          <button
-            class="icon-btn"
-            title="Sil"
-            aria-label="${escapeHtml(player.name)} iştirakçısını sil"
-            onclick="removePlayer('${player.id}')"
-          >✕</button>
-        </li>
-      `).join("");
+              <div class="edit-actions">
+                <button
+                  class="mini-btn save"
+                  title="Yadda saxla"
+                  aria-label="Oyunçu dəyişikliklərini yadda saxla"
+                  onclick="savePlayerEdit('${player.id}')"
+                >✓</button>
+
+                <button
+                  class="mini-btn cancel"
+                  title="Ləğv et"
+                  aria-label="Redaktəni ləğv et"
+                  onclick="cancelEditPlayer()"
+                >✕</button>
+              </div>
+            </li>
+          `;
+        }
+
+        return `
+          <li class="row email-row ${player.enabled ? "" : "disabled"}">
+            <span class="row-icon">●</span>
+
+            <span class="row-label">
+              <span class="player-name">${escapeHtml(player.name)}</span>
+              <span class="player-email">${escapeHtml(player.email)}</span>
+            </span>
+
+            <label class="toggle" title="${player.enabled ? "Deaktiv et" : "Aktiv et"}">
+              <input
+                type="checkbox"
+                ${player.enabled ? "checked" : ""}
+                onchange="togglePlayer('${player.id}')"
+              >
+              <span class="slider"></span>
+            </label>
+
+            <button
+              class="icon-btn"
+              title="Redaktə et"
+              aria-label="${escapeHtml(player.name)} iştirakçısını redaktə et"
+              onclick="startEditPlayer('${player.id}')"
+            >✎</button>
+
+            <button
+              class="icon-btn"
+              title="Sil"
+              aria-label="${escapeHtml(player.name)} iştirakçısını sil"
+              onclick="removePlayer('${player.id}')"
+            >✕</button>
+          </li>
+        `;
+      }).join("");
+    }
+  }
+
+  function handleRoleEditKey(event, id){
+    if(event.key === "Enter"){
+      saveRoleEdit(id);
+    }
+
+    if(event.key === "Escape"){
+      cancelEditRole();
+    }
+  }
+
+  function handlePlayerEditKey(event, id){
+    if(event.key === "Enter"){
+      savePlayerEdit(id);
+    }
+
+    if(event.key === "Escape"){
+      cancelEditPlayer();
     }
   }
 
