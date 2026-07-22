@@ -1,10 +1,13 @@
-// Paylaşılan məntiq: rol loqoları + HTML mail şablonu
+const crypto = require("crypto");
 
-// "Komanda görmə" qaydası: bu siyahıdakı rollardan olan hər kəs
-// eyni rola sahib digərlərini görür.
+// "Komanda görmə" qaydası:
 // Komissarlar bir-birini, mafialar bir-birini görür.
 // Manyak, Doktor, Bomj, Məşuqə və Vətəndaş heç kimi görmür.
 const TEAM_VISIBILITY_ROLES = ["komissar", "mafia"];
+
+function generateGameId() {
+  return `GAME-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
+}
 
 function formatAzDateTime(date = new Date()) {
   const parts = new Intl.DateTimeFormat("az-AZ", {
@@ -55,7 +58,7 @@ function shuffle(arr) {
   return a;
 }
 
-function buildEmailHtml(assignment, allAssignments) {
+function buildEmailHtml(assignment, allAssignments, gameId) {
   const roleLower = assignment.role.toLowerCase();
   const inTeamGroup = TEAM_VISIBILITY_ROLES.includes(roleLower);
   const timestamp = formatAzDateTime();
@@ -96,14 +99,14 @@ function buildEmailHtml(assignment, allAssignments) {
 
           ${teammates
             .map(
-              (t) => `
+              (teammate) => `
                 <p style="
                   margin:4px 0;
                   font-size:15px;
                   color:#262420;
                 ">
                   <span style="font-weight:600;">
-                    ${t.name}
+                    ${teammate.name}
                   </span>
                 </p>
               `
@@ -222,11 +225,40 @@ function buildEmailHtml(assignment, allAssignments) {
               font-size:13px;
               color:#9a9488;
             ">
-              Uğurlar, oyun başlasın !
+              Uğurlar, oyun başlasın!
             </p>
 
+            <div style="
+              margin-top:14px;
+              padding:12px;
+              background:#faf7f1;
+              border:1px solid #eee9df;
+              border-radius:10px;
+            ">
+              <p style="
+                margin:0;
+                font-size:10px;
+                letter-spacing:0.12em;
+                text-transform:uppercase;
+                color:#9a9488;
+              ">
+                Oyun ID
+              </p>
+
+              <p style="
+                margin:5px 0 0;
+                font-size:15px;
+                font-weight:700;
+                letter-spacing:0.08em;
+                color:#c0392b;
+                font-family:'SF Mono',Consolas,monospace;
+              ">
+                ${gameId}
+              </p>
+            </div>
+
             <p style="
-              margin:10px 0 0;
+              margin:12px 0 0;
               font-size:11px;
               color:#9a9488;
               font-family:'SF Mono',Consolas,monospace;
@@ -245,4 +277,5 @@ module.exports = {
   shuffle,
   buildEmailHtml,
   roleLogo,
+  generateGameId,
 };
