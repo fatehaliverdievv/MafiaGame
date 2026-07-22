@@ -27,9 +27,9 @@
     --radius-xl: 22px;
     --radius-lg: 16px;
     --radius-md: 12px;
-    --font-display: Georgia, "Times New Roman", serif;
+    --font-display: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     --font-body: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    --font-mono: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   }
 
   *{
@@ -486,6 +486,71 @@
     background: var(--danger-soft);
   }
 
+  .drag-handle{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 36px;
+    flex: 0 0 24px;
+    color: #a1a8b3;
+    cursor: grab;
+    user-select: none;
+    font-size: 17px;
+    letter-spacing: -2px;
+  }
+
+  .drag-handle:active{
+    cursor: grabbing;
+  }
+
+  .role-row[draggable="true"]{
+    cursor: default;
+  }
+
+  .role-row.dragging{
+    opacity: 0.38;
+    transform: scale(0.985);
+    border-style: dashed;
+  }
+
+  .role-row.drag-over{
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(180,35,44,0.09);
+  }
+
+  .order-actions{
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .order-btn{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 29px;
+    height: 29px;
+    padding: 0;
+    color: #8f96a2;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: #fff;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .order-btn:hover:not(:disabled){
+    color: var(--accent);
+    border-color: #efc7ca;
+    background: var(--accent-soft);
+  }
+
+  .order-btn:disabled{
+    opacity: 0.28;
+    cursor: not-allowed;
+  }
+
   .edit-row{
     align-items: stretch;
     border-color: rgba(180,35,44,0.28);
@@ -729,6 +794,10 @@
       display: none;
     }
 
+    .drag-handle{
+      display: none;
+    }
+
     .edit-row{
       flex-wrap: wrap;
     }
@@ -883,6 +952,7 @@
 
   let editingRoleId = null;
   let editingPlayerId = null;
+  let draggedRoleId = null;
 
   function makeId(){
     if(window.crypto && crypto.randomUUID){
@@ -1095,6 +1165,101 @@
     render();
   }
 
+  function moveRole(id, direction){
+    const currentIndex = roles.findIndex(role => role.id === id);
+
+    if(currentIndex === -1){
+      return;
+    }
+
+    const targetIndex = currentIndex + direction;
+
+    if(targetIndex < 0 || targetIndex >= roles.length){
+      return;
+    }
+
+    const [movedRole] = roles.splice(currentIndex, 1);
+    roles.splice(targetIndex, 0, movedRole);
+
+    persist();
+    render();
+  }
+
+  function handleRoleDragStart(event, id){
+    if(editingRoleId){
+      event.preventDefault();
+      return;
+    }
+
+    draggedRoleId = id;
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", id);
+
+    requestAnimationFrame(() => {
+      event.currentTarget.classList.add("dragging");
+    });
+  }
+
+  function handleRoleDragEnd(event){
+    event.currentTarget.classList.remove("dragging");
+    document.querySelectorAll(".role-row.drag-over").forEach(row => {
+      row.classList.remove("drag-over");
+    });
+    draggedRoleId = null;
+  }
+
+  function handleRoleDragOver(event){
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+
+    document.querySelectorAll(".role-row.drag-over").forEach(row => {
+      if(row !== event.currentTarget){
+        row.classList.remove("drag-over");
+      }
+    });
+
+    event.currentTarget.classList.add("drag-over");
+  }
+
+  function handleRoleDragLeave(event){
+    if(!event.currentTarget.contains(event.relatedTarget)){
+      event.currentTarget.classList.remove("drag-over");
+    }
+  }
+
+  function handleRoleDrop(event, targetRoleId){
+    event.preventDefault();
+    event.currentTarget.classList.remove("drag-over");
+
+    const sourceRoleId =
+      draggedRoleId || event.dataTransfer.getData("text/plain");
+
+    if(!sourceRoleId || sourceRoleId === targetRoleId){
+      return;
+    }
+
+    const sourceIndex = roles.findIndex(role => role.id === sourceRoleId);
+    const targetIndex = roles.findIndex(role => role.id === targetRoleId);
+
+    if(sourceIndex === -1 || targetIndex === -1){
+      return;
+    }
+
+    const [movedRole] = roles.splice(sourceIndex, 1);
+
+    const adjustedTargetIndex =
+      sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const insertAfter = event.clientY > rect.top + rect.height / 2;
+    const insertIndex = adjustedTargetIndex + (insertAfter ? 1 : 0);
+
+    roles.splice(insertIndex, 0, movedRole);
+
+    persist();
+    render();
+  }
+
   function render(){
     const roleRows = document.getElementById("roleRows");
     const roleEmpty = document.getElementById("roleEmpty");
@@ -1115,7 +1280,7 @@
     }else{
       roleEmpty.style.display = "none";
 
-      roleRows.innerHTML = roles.map(role => {
+      roleRows.innerHTML = roles.map((role, index) => {
         if(editingRoleId === role.id){
           return `
             <li class="row role-row edit-row">
@@ -1152,13 +1317,28 @@
         }
 
         return `
-          <li class="row role-row ${role.enabled ? "" : "disabled"}">
-            <span class="row-icon">♠</span>
+          <li
+            class="row role-row ${role.enabled ? "" : "disabled"}"
+            draggable="true"
+            ondragstart="handleRoleDragStart(event, '${role.id}')"
+            ondragend="handleRoleDragEnd(event)"
+            ondragover="handleRoleDragOver(event)"
+            ondragleave="handleRoleDragLeave(event)"
+            ondrop="handleRoleDrop(event, '${role.id}')"
+          >
+            <span
+              class="drag-handle"
+              title="Sürükləyib sırala"
+              aria-label="${escapeHtml(role.name)} rolunu sürükləyib sırala"
+            >⋮⋮</span>
+
+            <span class="row-icon">${index + 1}</span>
 
             <span class="row-label">
               <span class="role-name">${escapeHtml(role.name)}</span>
             </span>
 
+          
             <label class="toggle" title="${role.enabled ? "Deaktiv et" : "Aktiv et"}">
               <input
                 type="checkbox"
