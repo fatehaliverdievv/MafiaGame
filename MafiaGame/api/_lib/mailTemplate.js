@@ -76,19 +76,31 @@ function buildEmailHtml(assignment, allAssignments) {
   <div style="background:#f2f0eb; padding:44px 16px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
     <div style="max-width:480px; margin:0 auto; background:#ffffff; border:1px solid #e8e4db; border-radius:20px; overflow:hidden; box-shadow:0 8px 32px rgba(38,36,32,0.06);">
 
-      <div style="background:linear-gradient(135deg,#ffffff,#faf7f1); padding:24px 28px; border-bottom:1px solid #eee9df; display:flex; align-items:center; justify-content:space-between;">
-        <p style="margin:0; font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:#c0392b; font-weight:700;">Mafia Oyunu</p>
-        <p style="margin:0; font-size:11px; color:#9a9488; font-family:'SF Mono',Consolas,monospace;">${timestamp}</p>
-      </div>
+      <div style="
+  background:linear-gradient(135deg,#ffffff,#faf7f1);
+  padding:24px 28px;
+  border-bottom:1px solid #eee9df;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+">
+  <p style="
+    margin:0;
+    font-size:11px;
+    letter-spacing:0.16em;
+    text-transform:uppercase;
+    color:#c0392b;
+    font-weight:700;
+  ">
+    Mafia Oyunu
+  </p>
+</div>
 
       <div style="padding:12px 28px 0;">
         <p style="margin:22px 0 0; font-size:15px; color:#6b665c;">Salam, ${assignment.name}</p>
       </div>
 
       <div style="padding:26px 28px 6px; text-align:center;">
-        <div style="width:96px; height:96px; margin:0 auto; display:flex; align-items:center; justify-content:center; font-size:44px;">
-          ${roleLogo(assignment.role)}
-        </div>
         <p style="margin:18px 0 2px; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#9a9488;">Sənin rolun</p>
         <p style="margin:2px 0 0; font-size:28px; font-weight:800; color:#c0392b; letter-spacing:0.01em;">${assignment.role.toUpperCase()}</p>
       </div>
@@ -97,6 +109,8 @@ function buildEmailHtml(assignment, allAssignments) {
         ${teammatesHtml}
         <div style="margin-top:26px; padding-top:20px; border-top:1px solid #eee9df; text-align:center;">
           <p style="margin:0; font-size:13px; color:#9a9488;">Uğurlar, oyun başlasın 🎲</p>
+        <p style="margin:0; font-size:11px; color:#9a9488; font-family:'SF Mono',Consolas,monospace;">${timestamp}</p>
+
         </div>
       </div>
 
