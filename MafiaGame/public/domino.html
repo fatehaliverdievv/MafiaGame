@@ -424,7 +424,7 @@ function render() {
   const legal = new Set(view.moves.map((m) => m.tileId));
   if (selected !== null && !legal.has(selected)) selected = null;
 
-  renderScores(); renderBoard(); renderHand(); renderActions(); renderBazar(); renderOverlay();
+  renderScores(); renderBoard(); renderHand(); renderActions(); renderBazar(); renderOverlay(); autoPass();
 }
 
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
@@ -497,6 +497,26 @@ function renderHand() {
   }).join("") || "<em>Daşın qalmayıb</em>";
 }
 
+// Gedişi yoxdursa və bazardan daş çəkmək olmursa, pas avtomatik verilir
+let autoPassKey = "", autoPassT1 = null, autoPassT2 = null, passFallback = false;
+function autoPass() {
+  const stuck = view.status === "playing" && view.turn === view.you && view.moves.length === 0 && view.boneyardCount <= bazarKeep();
+  if (!stuck) {
+    clearTimeout(autoPassT1); clearTimeout(autoPassT2);
+    autoPassKey = ""; passFallback = false;
+    $("btnPass").classList.add("hidden");
+    return;
+  }
+  $("btnPass").classList.toggle("hidden", !passFallback);
+  const key = JSON.stringify([view.round, view.turn, view.boneyardCount, view.board.length, view.handCounts]);
+  if (key === autoPassKey) return;
+  autoPassKey = key; passFallback = false;
+  clearTimeout(autoPassT1); clearTimeout(autoPassT2);
+  autoPassT1 = setTimeout(() => { if (view && autoPassKey === key) act({ action: "pass" }); }, 1200);
+  // Avtomatik pas alınmasa, əl ilə "Pas" düyməsi görünür
+  autoPassT2 = setTimeout(() => { if (view && autoPassKey === key) { passFallback = true; $("btnPass").classList.remove("hidden"); } }, 4000);
+}
+
 // Bazarda həmişə qalmalı daş sayı: 2 nəfərdə 2, 3-4 nəfərdə 1
 const bazarKeep = () => (view.players.length === 2 ? 2 : 1);
 
@@ -510,7 +530,7 @@ function renderActions() {
   if (view.status === "finished") msg = "Raund bitdi";
   else if (!myTurn) msg = `${view.players[view.turn]} oynayır...`;
   else if (myTurn && view.opening !== null && view.board.length === 0) msg = "Oyun [1|1] qoşa daşı ilə başlayır — onu masaya sürüşdür";
-  else if (stuck) msg = view.boneyardCount > bazarKeep() ? "Gedişin yoxdur — bazardan daş çək" : "Gedişin yoxdur — pas keç";
+  else if (stuck) msg = view.boneyardCount > bazarKeep() ? "Gedişin yoxdur — bazardan daş çək" : "Gedişin yoxdur — avtomatik pas verilir…";
   else msg = "Sənin sıran — daşı masaya sürüşdür";
   $("status").textContent = msg;
   $("status").classList.toggle("mine", myTurn);
@@ -527,6 +547,16 @@ function rnd(seed) {
 let shuffleKey = "", shuffleUntil = 0, bazarN = -1;
 let bazarSlots = [], bazarTotal = 0, bazarRound = "", pendingSlot = null, lastRemoved = [], drawNote = { text: "", until: 0 };
 const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Arxa fon (gizli) tabda brauzer animasiyaları göstərmir — tab açılanda təkrar oynat
+let visQueue = [];
+function whenVisible(fn) { if (!document.hidden) fn(); else visQueue.push(fn); }
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  if (S.code) poll();
+  const q = visQueue; visQueue = [];
+  setTimeout(() => q.forEach((fn) => fn()), 300);
+});
 
 function bazarGeom(W) {
   const tw = W < 520 ? 20 : 26, th = tw * 2;
@@ -565,8 +595,12 @@ function renderBazar() {
 
   // Yeni raund başlayanda hər iki oyunçuda qarışdırma animasiyası
   const key = view.code + "#" + view.round;
-  const doShuffle = key !== shuffleKey && view.board.length <= 1 && !reduced();
+  let doShuffle = key !== shuffleKey && view.board.length <= 1 && !reduced();
   shuffleKey = key;
+  if (doShuffle && document.hidden) {
+    doShuffle = false;
+    whenVisible(() => { if (view && view.started && shuffleKey === key && view.board.length <= 1) replayShuffle(); });
+  }
   if (doShuffle) {
     shuffleUntil = Date.now() + 2300;
     setTimeout(() => { if (view && view.started) renderBazar(); }, 2350);
@@ -591,6 +625,14 @@ function renderBazar() {
     return `<div class="bzt" data-slot="${id}" data-rot="${p.rot}" style="left:${p.x}px;top:${p.y}px;width:${g.tw}px;height:${g.th}px;transform:rotate(${p.rot}deg)"></div>`;
   }).join("");
   if (doShuffle) playShuffle(el, W, g.tw, g.th);
+}
+
+function replayShuffle() {
+  shuffleUntil = Date.now() + 2300;
+  setTimeout(() => { if (view && view.started) renderBazar(); }, 2350);
+  const el = $("bazar"), W = el.clientWidth || 600, g = bazarGeom(W);
+  $("bazarLabel").textContent = "Bazar qarışdırılır…";
+  playShuffle(el, W, g.tw, g.th);
 }
 
 function playShuffle(el, W, tw, th) {
@@ -619,13 +661,18 @@ function animateDraw(prev, v) {
   if (seat < 0) seat = prev.turn;
   const k = prev.boneyardCount - v.boneyardCount;
   const who = seat === v.you ? "Sən" : v.players[seat];
-  drawNote = { text: `${who} bazardan ${k} daş çəkdi`, until: Date.now() + 2600 };
+  drawNote = { text: `${who} bazardan ${k} daş çəkdi`, until: Date.now() + 4500 };
   $("bazarLabel").textContent = drawNote.text;
-  setTimeout(() => { if (view && view.started) renderBazar(); }, 2650);
+  setTimeout(() => { if (view && view.started) renderBazar(); }, 4550);
 
   if (reduced() || !removed.length) return;
+  whenVisible(() => flyTiles(removed, seat));
+}
+
+function flyTiles(removed, seat) {
+  if (!view) return;
   const el = $("bazar"), br = el.getBoundingClientRect();
-  const target = seat === v.you ? $("hand") : document.querySelector(`.pl[data-seat="${seat}"]`);
+  const target = seat === view.you ? $("hand") : document.querySelector(`.pl[data-seat="${seat}"]`);
   if (!target || !br.width) return;
   const tr = target.getBoundingClientRect();
   const W = el.clientWidth || 600, g = bazarGeom(W);
