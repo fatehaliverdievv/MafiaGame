@@ -2,6 +2,7 @@
 //   POST {action:"create", name}
 //   POST {action:"join", code, name}
 //   POST {action:"start", code, token}                 (otağı yaradan; 2 nəfər 1×1, 3 nəfər hər kəs özü üçün, 4 nəfər 2×2)
+//   POST {action:"setPartner", code, token, partner}   (otağı yaradan; 4 nəfərdə tərəfdaşı seçir)
 //   GET  ?action=state&code=..&token=..                (polling)
 //   POST {action:"play", code, token, tileId, side}
 //   POST {action:"draw" | "pass", code, token}
@@ -38,6 +39,13 @@ async function save(room) {
 const newCode = () => crypto.randomBytes(3).toString("hex").toUpperCase();
 const newToken = () => crypto.randomBytes(16).toString("hex");
 const zeros = (n) => Array.from({ length: n }, () => 0);
+
+// 4 nəfərdə otağı yaradanın tərəfdaşı (oturacaq nömrəsi 1-3). Seçilməyibsə, 3-cü oyunçu (seat 2).
+function partnerOf(room) {
+  if (room.players.length !== 4) return null;
+  const p = room.partner;
+  return Number.isInteger(p) && p >= 1 && p <= 3 ? p : 2;
+}
 
 // Yeni oyun (match): xallar sıfırlanır, qələbə sayı (wins) saxlanılır
 function resetMatch(room) {
@@ -168,6 +176,7 @@ function viewFor(room, seat) {
     entered: room.entered, wins: room.wins, pot: room.pot,
     round: room.round, target: TARGET, entry: ENTRY, entryAttempts: ENTRY_ATTEMPTS,
     matchWinner: room.matchWinner, dry: room.dry, dryValue: DRY_WIN_VALUE,
+    partner: partnerOf(room), // yalnız oyun başlamazdan əvvəl mənalıdır
     volatile: !USE_KV, // KV qoşulmayıbsa otaq RAM-da saxlanılır və itə bilər (client xəbərdarlıq göstərir)
   };
   if (!g) return view;
@@ -231,10 +240,26 @@ module.exports = async (req, res) => {
       if (room.game) return res.json({ view: viewFor(room, seat) });
       const n = room.players.length;
       if (n < 2 || n > 4) return res.status(400).json({ error: "Oyun 2 nəfər (1×1), 3 nəfər (hər kəs özü üçün) və ya 4 nəfər (2×2) ilə başlayır" });
+      if (n === 4) {
+        // Sıra tərəflər arasında növbələşməlidir: A1, B1, A2, B2 (A = otağı yaradan + tərəfdaşı)
+        const p = partnerOf(room);
+        const others = [1, 2, 3].filter((i) => i !== p);
+        room.players = [0, others[0], p, others[1]].map((i) => room.players[i]);
+      }
       room.sides = engine.makeSides(n);
       room.wins = room.sides.map(() => 0);
       resetMatch(room);
       startRound(room, { open11: true }); // oyun [1|1] qoşa ilə başlayır
+      await save(room);
+      return res.json({ view: viewFor(room, seat) });
+    }
+
+    if (action === "setPartner") {
+      if (seat !== 0) return res.status(403).json({ error: "Tərəfdaşı yalnız otağı yaradan seçə bilər" });
+      if (room.game) return res.json({ view: viewFor(room, seat) });
+      const p = Number(input.partner);
+      if (!Number.isInteger(p) || p < 1 || p >= room.players.length) return res.status(400).json({ error: "Yanlış oyunçu" });
+      room.partner = p;
       await save(room);
       return res.json({ view: viewFor(room, seat) });
     }

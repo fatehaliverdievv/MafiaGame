@@ -157,7 +157,7 @@
 
 <div class="wrap">
   <div class="topbar">
-    <h1>🁢 Domino 101 <small style="font-size:11px;font-weight:600;color:var(--muted)">v8</small></h1>
+    <h1>🁢 Domino 101 <small style="font-size:11px;font-weight:600;color:var(--muted)">v9</small></h1>
     <div class="row" style="margin:0">
       <span class="chip hidden" id="chipCode"></span>
       <span class="chip hidden" id="chipRound"></span>
@@ -345,6 +345,12 @@ async function api(body) {
   return data;
 }
 
+// Daxil edilən ad yadda saxlanılır (istənilən vaxt dəyişmək olar)
+const NAME_KEY = "domino_name";
+function saveName() { try { localStorage.setItem(NAME_KEY, $("name").value.trim()); } catch (e) {} }
+try { $("name").value = localStorage.getItem(NAME_KEY) || ""; } catch (e) {}
+$("name").addEventListener("input", saveName);
+
 function saveSession() { try { localStorage.setItem(SESSION_KEY, JSON.stringify(S)); } catch (e) {} }
 function clearSession() { try { localStorage.removeItem(SESSION_KEY); } catch (e) {} }
 
@@ -419,14 +425,19 @@ function render() {
     $("waitCode").textContent = view.code;
     const np = view.players.length;
     $("waitList").innerHTML = view.players.map((n, i) =>
-      `<li>${i + 1}. ${esc(n)}${i === view.you ? " (sən)" : ""}${i === 0 ? " 👑" : ""}${np === 4 ? ` — ${i % 2 === 0 ? "A" : "B"} tərəfi` : ""}</li>`).join("");
+      `<li>${i + 1}. ${esc(n)}${i === view.you ? " (sən)" : ""}${i === 0 ? " 👑" : ""}${np === 4 ? ` — ${i === 0 || i === view.partner ? "A" : "B"} tərəfi` : ""}${np === 4 && view.host && i > 0 && i !== view.partner ? ` <button class="ghostbtn small" data-partner="${i}">Tərəfdaşım olsun</button>` : ""}</li>`).join("");
     const okCount = np >= 2 && np <= 4;
     $("btnStart").classList.toggle("hidden", !view.host);
     $("btnStart").disabled = !okCount;
-    $("waitHint").textContent = view.host
+    let orderTxt = "";
+    if (np === 4) {
+      const oth = [1, 2, 3].filter((i) => i !== view.partner);
+      orderTxt = " · Sıra: " + [0, oth[0], view.partner, oth[1]].map((i) => view.players[i]).join(" → ");
+    }
+    $("waitHint").textContent = (view.host
       ? (np < 2 ? "Ən azı 2 oyunçu lazımdır" : np === 3 ? "3 nəfərlə hər kəs özü üçün oynayır (və ya 4-cü oyunçunu gözlə: 2×2)" :
          np === 2 ? "1×1 oynamaq üçün başlat (və ya digər oyunçuları gözlə)" : "2×2 komanda oyunu hazırdır")
-      : "Otağı yaradan oyunu başlatmağı gözləyin...";
+      : "Otağı yaradan oyunu başlatmağı gözləyin...") + orderTxt;
     return;
   }
 
@@ -876,6 +887,10 @@ $("bazar").addEventListener("click", (e) => {
   act({ action: "draw" });
 });
 $("btnStart").onclick = () => act({ action: "start" });
+$("waitList").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-partner]");
+  if (b) act({ action: "setPartner", partner: Number(b.dataset.partner) });
+});
 $("btnLeave").onclick = () => leave("");
 $("btnCopy").onclick = async () => {
   try { await navigator.clipboard.writeText(view.code); $("btnCopy").textContent = "Kopyalandı ✓"; }
