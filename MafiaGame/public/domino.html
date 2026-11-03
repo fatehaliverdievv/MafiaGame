@@ -238,26 +238,27 @@ function tileSVG(first, second, vertical, w, h) {
 }
 
 function layoutBoard(board, origin, W, u) {
-  const pitch = 2 * u;
   const isD = (t) => t.a === t.b;
   const items = [];
 
-  const rectFor = (x0, x1, row, sign, d) => {
+  const rectFor = (x0, x1, yc, d) => {
     const h = d ? 2 * u : u;
-    return { x: x0, y: sign * row * pitch - h / 2, w: x1 - x0, h };
+    return { x: x0, y: yc - h / 2, w: x1 - x0, h };
   };
 
   // Sağ qol aşağıya, sol qol yuxarıya dolanır. Sıra dolanda şaquli künc daşı
-  // əvvəlki sıranın ucuna yapışır, onun alt (üst) ucu isə yeni sıranın daşına toxunur.
+  // əvvəlki sıranın ucuna yapışır, onun ucu isə yeni sıranın daşına toxunur.
+  // Künc daşı qoşadırsa, iki sıranın arasında ortalanır və hər iki sıra onun eyni tərəfinə yapışır.
   function walk(startEdge, startDir, sign, list, isRight, baseIndex, indexStep, firstMax) {
-    let edge = startEdge, dir = startDir, row = 0, run = 0, runMax = firstMax;
+    let edge = startEdge, dir = startDir, yc = 0, run = 0, runMax = firstMax, afterCorner = false;
     const flipDir = isRight ? -1 : 1;
 
-    const cornerRect = () => {
-      const yc = sign * row * pitch;
-      return { x: dir === 1 ? edge : edge - u, y: sign > 0 ? yc - u / 2 : yc - 1.5 * u, w: u, h: 2 * u };
+    const cornerRect = (dbl) => {
+      const x = dir === 1 ? edge : edge - u;
+      if (dbl) return { x, y: sign > 0 ? yc : yc - 2 * u, w: u, h: 2 * u };
+      return { x, y: sign > 0 ? yc - u / 2 : yc - 1.5 * u, w: u, h: 2 * u };
     };
-    const turn = () => { edge += dir * u; row += 1; dir = -dir; run = 0; runMax = 6; };
+    const turn = (dbl) => { if (!dbl) edge += dir * u; yc += sign * 2 * u; dir = -dir; run = 0; runMax = 6; };
     const advance = (tw) => {
       let x0, x1;
       if (dir === 1) { x0 = edge; x1 = edge + tw; } else { x1 = edge; x0 = edge - tw; }
@@ -268,22 +269,26 @@ function layoutBoard(board, origin, W, u) {
 
     list.forEach((t, k) => {
       const index = baseIndex + indexStep * k;
+      const d = isD(t);
       if (run >= runMax) {
-        const r = cornerRect();
+        const r = cornerRect(d);
         const inner = isRight ? t.a : t.b, outer = isRight ? t.b : t.a;
         items.push({ ...r, vertical: true, l: sign > 0 ? inner : outer, r: sign > 0 ? outer : inner, index });
-        turn();
+        turn(d);
+        afterCorner = !d;
         return;
       }
-      const d = isD(t);
+      // Künc daşından sonra yeni sıranın ilk daşı qoşadırsa, künc daşının ucuna düz yapışsın deyə yarım daş aralanır
+      if (afterCorner && d) yc += sign * 0.5 * u;
+      afterCorner = false;
       const { x0, x1 } = advance(d ? u : 2 * u);
       const flip = !d && dir === flipDir;
-      items.push({ ...rectFor(x0, x1, row, sign, d), vertical: d, l: flip ? t.b : t.a, r: flip ? t.a : t.b, index });
+      items.push({ ...rectFor(x0, x1, yc, d), vertical: d, l: flip ? t.b : t.a, r: flip ? t.a : t.b, index });
     });
 
-    if (run >= runMax) return cornerRect();
+    if (run >= runMax) return cornerRect(false);
     const { x0, x1 } = advance(2 * u);
-    return rectFor(x0, x1, row, sign, false);
+    return rectFor(x0, x1, yc, false);
   }
 
   let zones = {};
@@ -492,17 +497,20 @@ function renderHand() {
   }).join("") || "<em>Daşın qalmayıb</em>";
 }
 
+// Bazarda həmişə qalmalı daş sayı: 2 nəfərdə 2, 3-4 nəfərdə 1
+const bazarKeep = () => (view.players.length === 2 ? 2 : 1);
+
 function renderActions() {
   const myTurn = view.status === "playing" && view.turn === view.you;
   const stuck = myTurn && view.moves.length === 0;
-  $("btnDraw").disabled = !(stuck && view.boneyardCount > 0);
+  $("btnDraw").disabled = !(stuck && view.boneyardCount > bazarKeep());
   $("btnDraw").textContent = `Bazardan çək (${view.boneyardCount})`;
-  $("btnPass").disabled = !(stuck && view.boneyardCount === 0);
+  $("btnPass").disabled = !(stuck && view.boneyardCount <= bazarKeep());
   let msg;
   if (view.status === "finished") msg = "Raund bitdi";
   else if (!myTurn) msg = `${view.players[view.turn]} oynayır...`;
   else if (myTurn && view.opening !== null && view.board.length === 0) msg = "Oyun [1|1] qoşa daşı ilə başlayır — onu masaya sürüşdür";
-  else if (stuck) msg = view.boneyardCount > 0 ? "Gedişin yoxdur — bazardan daş çək" : "Gedişin yoxdur — pas keç";
+  else if (stuck) msg = view.boneyardCount > bazarKeep() ? "Gedişin yoxdur — bazardan daş çək" : "Gedişin yoxdur — pas keç";
   else msg = "Sənin sıran — daşı masaya sürüşdür";
   $("status").textContent = msg;
   $("status").classList.toggle("mine", myTurn);
@@ -517,45 +525,72 @@ function rnd(seed) {
 }
 
 let shuffleKey = "", shuffleUntil = 0, bazarN = -1;
+let bazarSlots = [], bazarTotal = 0, bazarRound = "", pendingSlot = null, lastRemoved = [], drawNote = { text: "", until: 0 };
 const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function bazarGeom(W) {
+  const tw = W < 520 ? 20 : 26, th = tw * 2;
+  const cellW = tw * 1.8, cellH = th * 1.15;
+  const cols = Math.max(1, Math.floor(W / cellW));
+  return { tw, th, cellW, cellH, cols, rows: Math.ceil(bazarTotal / cols) };
+}
+
+// Hər daşın bazarda sabit yeri var (slot) — daş çəkiləndə qalanlar yerindən tərpənmir
+function slotPos(i, g, W) {
+  let x = (i % g.cols) * g.cellW + (g.cellW - g.tw) / 2 + (rnd(i * 3 + 1) - 0.5) * g.cellW * 0.7;
+  let y = Math.floor(i / g.cols) * g.cellH + g.th * 0.12 + (rnd(i * 3 + 2) - 0.5) * g.cellH * 0.45;
+  x = Math.max(0, Math.min(W - g.tw, x)); y = Math.max(0, y);
+  return { x, y, rot: Math.round((rnd(i * 3 + 3) - 0.5) * 340) };
+}
+
+function syncSlots(n, key) {
+  if (key !== bazarRound || n > bazarSlots.length) {
+    bazarRound = key; bazarTotal = n; bazarSlots = Array.from({ length: n }, (_, i) => i);
+    return [];
+  }
+  const removed = [];
+  while (bazarSlots.length > n) {
+    let idx;
+    if (pendingSlot !== null && bazarSlots.includes(pendingSlot)) { idx = bazarSlots.indexOf(pendingSlot); pendingSlot = null; }
+    else idx = Math.floor(Math.random() * bazarSlots.length);
+    removed.push(bazarSlots.splice(idx, 1)[0]);
+  }
+  return removed;
+}
 
 function renderBazar() {
   const wrap = $("bazarWrap"), el = $("bazar"), n = view.boneyardCount;
   wrap.classList.toggle("hidden", !(n > 0));
   if (!(n > 0)) return;
 
-  // Yeni raund başlayanda (masa boş) hər iki oyunçuda qarışdırma animasiyası
+  // Yeni raund başlayanda hər iki oyunçuda qarışdırma animasiyası
   const key = view.code + "#" + view.round;
-  const doShuffle = key !== shuffleKey && view.board.length === 0 && !reduced();
+  const doShuffle = key !== shuffleKey && view.board.length <= 1 && !reduced();
   shuffleKey = key;
   if (doShuffle) {
     shuffleUntil = Date.now() + 2300;
     setTimeout(() => { if (view && view.started) renderBazar(); }, 2350);
   }
+  const removed = syncSlots(n, key);
+  if (removed.length) lastRemoved = removed;
   const shuffling = Date.now() < shuffleUntil;
 
   const can = !$("btnDraw").disabled && !shuffling;
-  $("bazarLabel").textContent = shuffling ? "Bazar qarışdırılır…" : `Bazar · ${n} daş` + (can ? " — toxun və daş çək" : "");
+  const noteOn = Date.now() < drawNote.until;
+  $("bazarLabel").textContent = shuffling ? "Bazar qarışdırılır…" : noteOn ? drawNote.text
+    : `Bazar · ${n} daş` + (can ? " — toxun və daş çək" : n <= bazarKeep() ? ` — son ${bazarKeep()} daş bazarda qalır` : "");
   el.classList.toggle("canDraw", can);
   if (shuffling && !doShuffle && n === bazarN) return; // animasiya gedərkən yenidən qurma
   bazarN = n;
 
   const W = el.clientWidth || 600;
-  const tw = W < 520 ? 20 : 26, th = tw * 2;
-  const cellW = tw * 1.8, cellH = th * 1.15;
-  const cols = Math.max(1, Math.floor(W / cellW));
-  const rows = Math.ceil(n / cols);
-  el.style.height = Math.round(rows * cellH + th * 0.3) + "px";
-  let html = "";
-  for (let i = 0; i < n; i++) {
-    let x = (i % cols) * cellW + (cellW - tw) / 2 + (rnd(i * 3 + 1) - 0.5) * cellW * 0.7;
-    let y = Math.floor(i / cols) * cellH + th * 0.12 + (rnd(i * 3 + 2) - 0.5) * cellH * 0.45;
-    x = Math.max(0, Math.min(W - tw, x)); y = Math.max(0, y);
-    const rot = Math.round((rnd(i * 3 + 3) - 0.5) * 340);
-    html += `<div class="bzt" data-rot="${rot}" style="left:${x}px;top:${y}px;width:${tw}px;height:${th}px;transform:rotate(${rot}deg)"></div>`;
-  }
-  el.innerHTML = html;
-  if (doShuffle) playShuffle(el, W, tw, th);
+  const g = bazarGeom(W);
+  el.style.height = Math.round(g.rows * g.cellH + g.th * 0.3) + "px";
+  el.innerHTML = bazarSlots.map((id) => {
+    const p = slotPos(id, g, W);
+    return `<div class="bzt" data-slot="${id}" data-rot="${p.rot}" style="left:${p.x}px;top:${p.y}px;width:${g.tw}px;height:${g.th}px;transform:rotate(${p.rot}deg)"></div>`;
+  }).join("");
+  if (doShuffle) playShuffle(el, W, g.tw, g.th);
 }
 
 function playShuffle(el, W, tw, th) {
@@ -576,24 +611,37 @@ function playShuffle(el, W, tw, th) {
   });
 }
 
-// Kim bazardan daş çəksə, daş bazardan onun kartına/əlinə uçur (rəqib də görür)
+// Kim bazardan daş çəksə, hər iki tərəf görür: konkret daş bazardan çıxıb onun kartına/əlinə uçur
 function animateDraw(prev, v) {
-  if (!prev || prev.round !== v.round || !(v.boneyardCount < prev.boneyardCount) || reduced()) return;
-  const seat = v.players.findIndex((_, i) => v.handCounts[i] > (prev.handCounts[i] || 0));
-  if (seat < 0) return;
-  const src = $("bazar").getBoundingClientRect();
-  if (!src.width) return;
+  if (!prev || prev.round !== v.round || !(v.boneyardCount < prev.boneyardCount)) return;
+  const removed = lastRemoved; lastRemoved = [];
+  let seat = v.players.findIndex((_, i) => v.handCounts[i] > (prev.handCounts[i] || 0));
+  if (seat < 0) seat = prev.turn;
+  const k = prev.boneyardCount - v.boneyardCount;
+  const who = seat === v.you ? "Sən" : v.players[seat];
+  drawNote = { text: `${who} bazardan ${k} daş çəkdi`, until: Date.now() + 2600 };
+  $("bazarLabel").textContent = drawNote.text;
+  setTimeout(() => { if (view && view.started) renderBazar(); }, 2650);
+
+  if (reduced() || !removed.length) return;
+  const el = $("bazar"), br = el.getBoundingClientRect();
   const target = seat === v.you ? $("hand") : document.querySelector(`.pl[data-seat="${seat}"]`);
-  if (!target) return;
-  const to = target.getBoundingClientRect();
-  const x0 = src.left + src.width / 2 - 12, y0 = src.top + src.height / 2 - 24;
-  const x1 = to.left + to.width / 2 - 12, y1 = to.top + to.height / 2 - 24;
-  const f = document.createElement("div"); f.className = "flytile"; document.body.appendChild(f);
-  f.animate([
-    { transform: `translate(${x0}px,${y0}px) rotate(0deg) scale(1)` },
-    { transform: `translate(${(x0 + x1) / 2}px,${Math.min(y0, y1) - 40}px) rotate(180deg) scale(1.25)`, offset: 0.5 },
-    { transform: `translate(${x1}px,${y1}px) rotate(360deg) scale(.8)` },
-  ], { duration: 650, easing: "cubic-bezier(.4,0,.2,1)" }).onfinish = () => f.remove();
+  if (!target || !br.width) return;
+  const tr = target.getBoundingClientRect();
+  const W = el.clientWidth || 600, g = bazarGeom(W);
+  removed.forEach((id, j) => {
+    const p = slotPos(id, g, W);
+    const x0 = br.left + p.x, y0 = br.top + p.y;
+    const x1 = tr.left + tr.width / 2 - g.tw / 2, y1 = tr.top + tr.height / 2 - g.th / 2;
+    const f = document.createElement("div"); f.className = "flytile";
+    f.style.width = g.tw + "px"; f.style.height = g.th + "px";
+    document.body.appendChild(f);
+    f.animate([
+      { transform: `translate(${x0}px,${y0}px) rotate(${p.rot}deg) scale(1)` },
+      { transform: `translate(${(x0 + x1) / 2}px,${Math.min(y0, y1) - 50}px) rotate(${p.rot / 2 + 180}deg) scale(1.3)`, offset: 0.45 },
+      { transform: `translate(${x1}px,${y1}px) rotate(360deg) scale(.7)`, opacity: 0.85 },
+    ], { duration: 850, delay: j * 220, easing: "cubic-bezier(.4,0,.2,1)", fill: "both" }).onfinish = () => f.remove();
+  });
 }
 
 function renderOverlay() {
@@ -738,8 +786,13 @@ $("board").addEventListener("click", (e) => {
 });
 
 // ---------- Düymələr ----------
-$("btnDraw").onclick = () => act({ action: "draw" });
-$("bazar").addEventListener("click", () => { if (!$("btnDraw").disabled) act({ action: "draw" }); });
+$("btnDraw").onclick = () => { pendingSlot = null; act({ action: "draw" }); };
+$("bazar").addEventListener("click", (e) => {
+  if ($("btnDraw").disabled) return;
+  const t = e.target.closest(".bzt");
+  pendingSlot = t ? Number(t.dataset.slot) : null;
+  act({ action: "draw" });
+});
 $("btnPass").onclick = () => act({ action: "pass" });
 $("btnStart").onclick = () => act({ action: "start" });
 $("btnLeave").onclick = () => leave("");
