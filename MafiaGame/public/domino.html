@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Domino 101</title>
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <style>
   :root {
     --gold:#facc15; --gold-d:#eab308; --ink:#f1f5ee; --muted:#9db5a3; --soft:#c7d9cb; --error:#fca5a5;
@@ -156,7 +157,7 @@
 
 <div class="wrap">
   <div class="topbar">
-    <h1>🁢 Domino 101</h1>
+    <h1>🁢 Domino 101 <small style="font-size:11px;font-weight:600;color:var(--muted)">v8</small></h1>
     <div class="row" style="margin:0">
       <span class="chip hidden" id="chipCode"></span>
       <span class="chip hidden" id="chipRound"></span>
@@ -218,9 +219,12 @@ const PIPS = {
   6: [[0,0],[2,0],[0,1],[2,1],[0,2],[2,2]],
 };
 
-function halfPips(v, ox, oy) {
-  return (PIPS[v] || []).map(([c, r]) =>
-    `<circle cx="${ox + 12.5 + c * 12.5}" cy="${oy + 12.5 + r * 12.5}" r="4.6" fill="#141414"/>`).join("");
+// Üfüqi daşda pipslər 90° çevrilir (məsələn 6: iki sütun yox, iki sıra × üç pips)
+function halfPips(v, ox, oy, rotated) {
+  return (PIPS[v] || []).map(([c0, r0]) => {
+    const c = rotated ? r0 : c0, r = rotated ? c0 : r0;
+    return `<circle cx="${ox + 12.5 + c * 12.5}" cy="${oy + 12.5 + r * 12.5}" r="4.6" fill="#141414"/>`;
+  }).join("");
 }
 
 function tileSVG(first, second, vertical, w, h) {
@@ -228,7 +232,7 @@ function tileSVG(first, second, vertical, w, h) {
     return `<svg width="${w}" height="${h}" viewBox="0 0 100 50">
       <rect x="1" y="1" width="98" height="48" rx="7" fill="url(#ivory)" stroke="#b9b08f" stroke-width="1.5"/>
       <line x1="50" y1="8" x2="50" y2="42" stroke="#2b2b2b" stroke-width="2.4"/>
-      ${halfPips(first, 0, 0)}${halfPips(second, 50, 0)}</svg>`;
+      ${halfPips(first, 0, 0, true)}${halfPips(second, 50, 0, true)}</svg>`;
   }
   return `<svg width="${w}" height="${h}" viewBox="0 0 50 100">
     <rect x="1" y="1" width="48" height="98" rx="7" fill="url(#ivory)" stroke="#b9b08f" stroke-width="1.5"/>
@@ -248,8 +252,11 @@ function layoutBoard(board, origin, W, u) {
   // Sağ qol aşağıya, sol qol yuxarıya dolanır. Sıra dolanda şaquli künc daşı
   // əvvəlki sıranın ucuna yapışır, onun ucu isə yeni sıranın daşına toxunur.
   // Künc daşı qoşadırsa, iki sıranın arasında ortalanır və hər iki sıra onun eyni tərəfinə yapışır.
-  function walk(startEdge, startDir, sign, list, isRight, baseIndex, indexStep, firstMax) {
-    let edge = startEdge, dir = startDir, yc = 0, run = 0, runMax = firstMax, afterCorner = false;
+  // Sıranın uzunluğu masanın enindən asılıdır: daşlar masanın kənarına çatana qədər düzülür, sonra künc daşı ilə dönür.
+  // Hər daş əvvəlkilərin yerini dəyişmir (yeni daş əlavə olunanda mövcud daşlar yerindən tərpənmir).
+  const lim = W / 2 - 8;
+  function walk(startEdge, startDir, sign, list, isRight, baseIndex, indexStep) {
+    let edge = startEdge, dir = startDir, yc = 0, afterCorner = false;
     const flipDir = isRight ? -1 : 1;
 
     const cornerRect = (dbl) => {
@@ -257,19 +264,20 @@ function layoutBoard(board, origin, W, u) {
       if (dbl) return { x, y: sign > 0 ? yc : yc - 2 * u, w: u, h: 2 * u };
       return { x, y: sign > 0 ? yc - u / 2 : yc - 1.5 * u, w: u, h: 2 * u };
     };
-    const turn = (dbl) => { if (!dbl) edge += dir * u; yc += sign * 2 * u; dir = -dir; run = 0; runMax = 6; };
+    const turn = (dbl) => { if (!dbl) edge += dir * u; yc += sign * 2 * u; dir = -dir; };
+    // Bu daşdan sonra künc daşına yer qalmırsa, bu daş künc olur
+    const cornerDue = (tw) => (dir === 1 ? edge + tw + u > lim : edge - tw - u < -lim);
     const advance = (tw) => {
       let x0, x1;
       if (dir === 1) { x0 = edge; x1 = edge + tw; } else { x1 = edge; x0 = edge - tw; }
       edge = dir === 1 ? x1 : x0;
-      run += 1;
       return { x0, x1 };
     };
 
     list.forEach((t, k) => {
       const index = baseIndex + indexStep * k;
       const d = isD(t);
-      if (run >= runMax) {
+      if (cornerDue(d ? u : 2 * u)) {
         const r = cornerRect(d);
         const inner = isRight ? t.a : t.b, outer = isRight ? t.b : t.a;
         items.push({ ...r, vertical: true, l: sign > 0 ? inner : outer, r: sign > 0 ? outer : inner, index });
@@ -285,7 +293,7 @@ function layoutBoard(board, origin, W, u) {
       items.push({ ...rectFor(x0, x1, yc, d), vertical: d, l: flip ? t.b : t.a, r: flip ? t.a : t.b, index });
     });
 
-    if (run >= runMax) return cornerRect(false);
+    if (cornerDue(2 * u)) return cornerRect(false);
     const { x0, x1 } = advance(2 * u);
     return rectFor(x0, x1, yc, false);
   }
@@ -301,8 +309,8 @@ function layoutBoard(board, origin, W, u) {
     items.push({ x: -cw / 2, y: -ch / 2, w: cw, h: ch, vertical: cd, l: c.a, r: c.b, index: origin });
     const rightList = board.slice(origin + 1);
     const leftList = board.slice(0, origin).reverse();
-    zones.right = walk(cw / 2, 1, 1, rightList, true, origin + 1, 1, 3);
-    zones.left = walk(-cw / 2, -1, -1, leftList, false, origin - 1, -1, 2);
+    zones.right = walk(cw / 2, 1, 1, rightList, true, origin + 1, 1);
+    zones.left = walk(-cw / 2, -1, -1, leftList, false, origin - 1, -1);
   }
 
   const box = (arr) => arr.reduce((b, r) => ({
@@ -323,6 +331,8 @@ const $ = (id) => document.getElementById(id);
 const SESSION_KEY = "domino_session";
 let S = { code: null, token: null };
 let view = null, lastSig = "", selected = null, drag = null, pendingRender = false, timer = null, handOrder = [], failCount = 0;
+// İkiqat klik ilə çevrilmiş daşlar (yalnız görünüş, oyun məntiqinə təsir etmir)
+let flipped = new Set(), tapT = null, lastTap = { id: null, t: 0 };
 
 function showErr(m) { $("err").textContent = m || ""; }
 
@@ -350,6 +360,7 @@ function enter(data) {
 function leave(msg) {
   clearInterval(timer); clearSession();
   S = { code: null, token: null }; view = null; lastSig = ""; selected = null; handOrder = [];
+  flipped.clear(); clearTimeout(tapT); lastTap = { id: null, t: 0 };
   $("lobby").classList.remove("hidden");
   ["wait", "table", "overlay", "notice", "chipCode", "chipRound", "btnLeave"].forEach((id) => $(id).classList.add("hidden"));
   showErr(msg || "");
@@ -382,6 +393,8 @@ function applyView(v) {
 }
 
 async function act(body) {
+  // Bazarda qalmalı son daşlar çəkilə bilməz
+  if (body.action === "draw" && view && view.boneyardCount <= bazarKeep()) return;
   try {
     const d = await api({ code: S.code, token: S.token, ...body });
     selected = null;
@@ -455,7 +468,7 @@ function renderScores() {
   $("scores").innerHTML = html;
 }
 
-function boardU(W) { return Math.max(16, Math.min(34, Math.floor((W - 40) / 14))); }
+function boardU(W) { return Math.max(16, Math.min(34, Math.floor((W - 40) / 16))); }
 
 function renderBoard() {
   const el = $("board");
@@ -490,9 +503,13 @@ function renderHand() {
   const legal = new Set(view.moves.map((m) => m.tileId));
   const myTurn = view.status === "playing" && view.turn === view.you;
   const tiles = orderedHand();
+  // Əldə olmayan daşların "çevrilmiş" qeydini təmizlə
+  const inHand = new Set(tiles.map((t) => t.id));
+  [...flipped].forEach((id) => { if (!inHand.has(id)) flipped.delete(id); });
   el.innerHTML = tiles.map((t) => {
     const cls = "htile" + (legal.has(t.id) ? " play" : myTurn ? " dim" : "") + (selected === t.id ? " sel" : "");
-    return `<div class="${cls}" data-id="${t.id}">${tileSVG(t.a, t.b, true, hu, hu * 2)}</div>`;
+    const f = flipped.has(t.id);
+    return `<div class="${cls}" data-id="${t.id}">${tileSVG(f ? t.b : t.a, f ? t.a : t.b, true, hu, hu * 2)}</div>`;
   }).join("") || "<em>Daşın qalmayıb</em>";
 }
 
@@ -521,7 +538,10 @@ const bazarKeep = () => (view.players.length === 2 ? 2 : 1);
 function renderActions() {
   const myTurn = view.status === "playing" && view.turn === view.you;
   const stuck = myTurn && view.moves.length === 0;
-  $("btnDraw").disabled = !(stuck && view.boneyardCount > bazarKeep());
+  const canDraw = stuck && view.boneyardCount > bazarKeep();
+  $("btnDraw").disabled = !canDraw;
+  $("btnDraw").classList.toggle("hidden", !canDraw);
+  document.querySelector(".tools").classList.toggle("hidden", !canDraw);
   $("btnDraw").textContent = `Bazardan çək (${view.boneyardCount})`;
   let msg;
   if (view.status === "finished") msg = "Raund bitdi";
@@ -812,10 +832,23 @@ function endDrag(e, cancelled) {
         hideZones();
         if (z) act({ action: "play", tileId: d.id, side: z.dataset.side });
       }
-    } else if (d.moves.length === 1) {
-      act({ action: "play", tileId: d.id, side: d.moves[0].side });
-    } else if (d.moves.length > 1) {
-      selected = d.id; renderHand(); $("board").classList.add("pick"); showZones(d.id);
+    } else {
+      // Klik / toxunuş: ikiqat klik daşı çevirir, tək klik (gecikmə ilə) daşı oynayır
+      const now = Date.now();
+      if (lastTap.id === d.id && now - lastTap.t < 300) {
+        clearTimeout(tapT); lastTap = { id: null, t: 0 };
+        if (flipped.has(d.id)) flipped.delete(d.id); else flipped.add(d.id);
+        renderHand();
+      } else {
+        lastTap = { id: d.id, t: now };
+        clearTimeout(tapT);
+        tapT = setTimeout(() => {
+          lastTap = { id: null, t: 0 };
+          if (!view) return;
+          if (d.moves.length === 1) act({ action: "play", tileId: d.id, side: d.moves[0].side });
+          else if (d.moves.length > 1) { selected = d.id; renderHand(); $("board").classList.add("pick"); showZones(d.id); }
+        }, 300);
+      }
     }
   } else hideZones();
   if (pendingRender) { pendingRender = false; render(); } else if (d.moved) renderHand();
