@@ -61,25 +61,11 @@ function startRound(room, opts) {
   room.lastRound = null;
 }
 
-// Raund nəticəsi. 3 nəfərdə hər oyunçu öz tərəfidir (sides = [[0],[1],[2]]), ona görə nəticəni burada hesablayırıq;
-// 2 və 4 nəfərdə mövcud engine.roundResult işlədilir.
-function calcResult(room, g) {
-  if (g.hands.length !== 3) return engine.roundResult(g);
-  const totals = g.hands.map((h) => h.reduce((a, t) => a + t.a + t.b, 0));
-  const out = g.hands.findIndex((h) => h.length === 0);
-  const sumOthers = (w) => totals.reduce((a, t, i) => a + (i === w ? 0 : t), 0);
-  if (out >= 0) return { tie: false, winnerSide: out, winnerSeat: out, points: sumOthers(out), sideTotals: totals };
-  const min = Math.min(...totals);
-  const lows = totals.map((t, i) => (t === min ? i : -1)).filter((i) => i >= 0);
-  if (lows.length > 1) return { tie: true, winnerSide: null, winnerSeat: null, points: 0, sideTotals: totals };
-  return { tie: false, winnerSide: lows[0], winnerSeat: null, points: sumOthers(lows[0]), sideTotals: totals };
-}
-
 // Raund indicə bitibsə: xalı tətbiq et
 function finalizeIfFinished(room, wasPlaying) {
   const g = room.game;
   if (!wasPlaying || g.status !== "finished") return;
-  const res = calcResult(room, g);
+  const res = engine.roundResult(g);
 
   const ev = {
     round: room.round, reason: g.reason, tie: res.tie, winnerSide: res.winnerSide,
@@ -138,10 +124,10 @@ function finalizeIfFinished(room, wasPlaying) {
 }
 
 // Oyun bağlıdır: bazardan çəkmək mümkün deyil və heç kimin gedişi yoxdur → raund avtomatik bitir
+// (əksər hallarda engine.pass özü bitirir; bu, bağlı qalmış vəziyyətlər üçün ehtiyat yoxlamadır)
 function isBlocked(g) {
   if (!g || g.status !== "playing") return false;
-  const keep = g.hands.length === 2 ? 2 : 1; // bazarda həmişə qalan daş sayı (client-dəki bazarKeep ilə eyni)
-  if (g.boneyard.length > keep) return false;
+  if (g.boneyard.length > engine.bazarKeep(g.hands.length)) return false;
   for (let seat = 0; seat < g.hands.length; seat++) {
     if (engine.legalMoves(g, seat).length > 0) return false;
   }
@@ -151,8 +137,13 @@ function isBlocked(g) {
 function settleBlocked(room) {
   const g = room.game;
   if (!isBlocked(g)) return false;
+  const totals = g.sides.map((seats) => seats.reduce((sum, seat) => sum + engine.handScore(g.hands[seat]), 0));
+  const min = Math.min(...totals);
+  const lows = totals.flatMap((t, i) => (t === min ? [i] : []));
   g.status = "finished";
   g.reason = "blocked";
+  g.winner = null;
+  g.winnerSide = lows.length === 1 ? lows[0] : null; // null = bərabərlik
   finalizeIfFinished(room, true);
   return true;
 }
@@ -240,7 +231,7 @@ module.exports = async (req, res) => {
       if (room.game) return res.json({ view: viewFor(room, seat) });
       const n = room.players.length;
       if (n < 2 || n > 4) return res.status(400).json({ error: "Oyun 2 nəfər (1×1), 3 nəfər (hər kəs özü üçün) və ya 4 nəfər (2×2) ilə başlayır" });
-      room.sides = n === 3 ? [[0], [1], [2]] : engine.makeSides(n);
+      room.sides = engine.makeSides(n);
       room.wins = room.sides.map(() => 0);
       resetMatch(room);
       startRound(room, { open11: true }); // oyun [1|1] qoşa ilə başlayır

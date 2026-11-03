@@ -1,5 +1,5 @@
 // api/_domino-engine.js — Domino məntiqi (bir raund). "_" ilə başlayan fayl Vercel-də endpoint olmur.
-// Tərəflər (sides): 2 nəfər → [[0],[1]] ; 4 nəfər → [[0,2],[1,3]] (tərəfdaşlar qarşı-qarşıya oturur)
+// Tərəflər (sides): 2 nəfər → [[0],[1]] ; 3 nəfər → [[0],[1],[2]] (hər kəs özü üçün) ; 4 nəfər → [[0,2],[1,3]] (tərəfdaşlar qarşı-qarşıya oturur)
 
 const TILE_11 = 7; // [1|1] qoşa daşının id-si (createDeck sırasına görə)
 
@@ -23,8 +23,13 @@ const handScore = (h) => h.reduce((s, t) => s + t.a + t.b, 0);
 const leftEnd = (s) => (s.board.length ? s.board[0].a : null);
 const rightEnd = (s) => (s.board.length ? s.board[s.board.length - 1].b : null);
 
+// Bazarda həmişə qalmalı daş sayı: 2 nəfərdə 2, 3-4 nəfərdə 1 (client-dəki bazarKeep ilə eyni olmalıdır)
+const bazarKeep = (players) => (players === 2 ? 2 : 1);
+
 function makeSides(players) {
-  return players === 4 ? [[0, 2], [1, 3]] : [[0], [1]];
+  if (players === 4) return [[0, 2], [1, 3]];
+  if (players === 3) return [[0], [1], [2]];
+  return [[0], [1]];
 }
 const sideOf = (state, seat) => state.sides.findIndex((s) => s.includes(seat));
 
@@ -139,7 +144,8 @@ function playTile(state, player, tileId, side) {
 function drawTile(state, player) {
   assertPlaying(state, player);
   if (legalMoves(state, player).length > 0) throw new Error("Gedişiniz var, daş çəkmək olmaz");
-  if (state.boneyard.length === 0) throw new Error("Bazar boşdur");
+  // Bazarda son daşlar qalır (2 nəfərdə 2, 3-4 nəfərdə 1) — onları çəkmək olmaz
+  if (state.boneyard.length <= bazarKeep(state.hands.length)) throw new Error("Bazarda son daşlar qalır, çəkmək olmaz");
   const [drawn, ...rest] = state.boneyard;
   return { ...state, boneyard: rest, hands: state.hands.map((h, i) => (i === player ? [...h, drawn] : h)) };
 }
@@ -150,10 +156,10 @@ const sideTotals = (state) =>
 function pass(state, player) {
   assertPlaying(state, player);
   if (legalMoves(state, player).length > 0) throw new Error("Gedişiniz var, pas keçmək olmaz");
-  if (state.boneyard.length > 0) throw new Error("Əvvəlcə bazardan daş çəkin");
+  if (state.boneyard.length > bazarKeep(state.hands.length)) throw new Error("Əvvəlcə bazardan daş çəkin");
 
   const passes = state.passes + 1;
-  // Hər iki tərəfdən gediş bitdi → oyun bağlı gəlib
+  // Hamı ardıcıl pas keçdi → oyun bağlı gəlib
   if (passes >= state.hands.length) {
     const totals = sideTotals(state);
     const min = Math.min(...totals);
@@ -167,8 +173,8 @@ function pass(state, player) {
 }
 
 // Raundun nəticəsi.
-// - Daşlarını bitirən tərəf: rəqib tərəfin əlində qalan daşların cəmini alır.
-// - Bağlı oyun: əlində daşların cəmi AZ olan tərəf qalib; ÇOX olan tərəfin cəmini alır.
+// - Daşlarını bitirən tərəf: rəqib tərəflərin əlində qalan daşların cəmini alır.
+// - Bağlı oyun: əlində daşların cəmi AZ olan tərəf qalib; digər tərəflərin cəmini alır.
 // - Bərabərlik: tie=true, heç kim xal almır (xal növbəti raunda keçir).
 function roundResult(state) {
   if (state.status !== "finished") return null;
@@ -179,5 +185,5 @@ function roundResult(state) {
 }
 
 module.exports = {
-  newGame, legalMoves, playTile, drawTile, pass, roundResult, handScore, makeSides, dealIsValid, TILE_11,
+  newGame, legalMoves, playTile, drawTile, pass, roundResult, handScore, makeSides, dealIsValid, bazarKeep, TILE_11,
 };
