@@ -1,7 +1,7 @@
 // api/domino.js — Domino 101 otaqları. KV varsa Vercel KV, yoxdursa RAM (yalnız lokal test üçün).
 //   POST {action:"create", name}
 //   POST {action:"join", code, name}
-//   POST {action:"start", code, token}                 (otağı yaradan; 2 nəfər 1×1, 4 nəfər 2×2)
+//   POST {action:"start", code, token}                 (otağı yaradan; 2 nəfər 1×1, 3 nəfər hər kəs özü üçün, 4 nəfər 2×2)
 //   GET  ?action=state&code=..&token=..                (polling)
 //   POST {action:"play", code, token, tileId, side}
 //   POST {action:"draw" | "pass", code, token}
@@ -13,7 +13,7 @@ const engine = require("./_domino-engine");
 // ---- 101 qaydaları (dəyişə bilən sabitlər) ----
 const TARGET = 101;       // oyunu bitirən xal
 const ENTRY = 13;         // "saya düşmək" üçün minimal xal
-const ENTRY_ATTEMPTS = 3; // 13 xalı toplamaq üçün cəhd sayı (3 dəfə xal qazanma), sonra xallar sıfırlanır
+const ENTRY_ATTEMPTS = 3; // 13 xalı toplamaq üçün cəhd sayı (ardıcıl qələbə), sonra xallar sıfırlanır
 const DRY_WIN_VALUE = 2;  // "quru" qələbə neçə qələbə sayılır
 const TIE_DOUBLE = false; // bərabərlikdə bonus: false = bir tərəfin xalı, true = hər iki tərəfin xalı (2-yə vurulur)
 
@@ -61,23 +61,47 @@ function startRound(room, opts) {
   room.lastRound = null;
 }
 
+// Raund nəticəsi. 3 nəfərdə hər oyunçu öz tərəfidir (sides = [[0],[1],[2]]), ona görə nəticəni burada hesablayırıq;
+// 2 və 4 nəfərdə mövcud engine.roundResult işlədilir.
+function calcResult(room, g) {
+  if (g.hands.length !== 3) return engine.roundResult(g);
+  const totals = g.hands.map((h) => h.reduce((a, t) => a + t.a + t.b, 0));
+  const out = g.hands.findIndex((h) => h.length === 0);
+  const sumOthers = (w) => totals.reduce((a, t, i) => a + (i === w ? 0 : t), 0);
+  if (out >= 0) return { tie: false, winnerSide: out, winnerSeat: out, points: sumOthers(out), sideTotals: totals };
+  const min = Math.min(...totals);
+  const lows = totals.map((t, i) => (t === min ? i : -1)).filter((i) => i >= 0);
+  if (lows.length > 1) return { tie: true, winnerSide: null, winnerSeat: null, points: 0, sideTotals: totals };
+  return { tie: false, winnerSide: lows[0], winnerSeat: null, points: sumOthers(lows[0]), sideTotals: totals };
+}
+
 // Raund indicə bitibsə: xalı tətbiq et
 function finalizeIfFinished(room, wasPlaying) {
   const g = room.game;
   if (!wasPlaying || g.status !== "finished") return;
-  const res = engine.roundResult(g);
+  const res = calcResult(room, g);
 
   const ev = {
     round: room.round, reason: g.reason, tie: res.tie, winnerSide: res.winnerSide,
     winnerSeat: typeof res.winnerSeat === "number" ? res.winnerSeat : null,
     base: res.points, pot: 0, gained: 0, potNow: 0,
-    entered: false, reset: false, pending: 0, attempts: 0,
+    entered: false, reset: false, pending: 0, attempts: 0, dropped: [],
     sideTotals: res.sideTotals, hands: g.hands,
   };
 
+  // Sayaya düşməmiş tərəf raundu qazanmasa (məğlubiyyət və ya bərabərlik), toplanan xalı silinir
+  room.sides.forEach((_, i) => {
+    const wonThis = !res.tie && res.winnerSide === i;
+    if (!room.entered[i] && room.pending[i] > 0 && !wonThis) {
+      room.pending[i] = 0;
+      room.attempts[i] = 0;
+      ev.dropped.push(i);
+    }
+  });
+
   if (res.tie) {
     // Qayda 5: bərabərlikdə "mövcud xal" növbəti raundun qalibinin xalının üstünə gəlinir
-    room.pot += TIE_DOUBLE ? res.sideTotals.reduce((a, b) => a + b, 0) : res.sideTotals[0];
+    room.pot += TIE_DOUBLE ? res.sideTotals.reduce((a, b) => a + b, 0) : Math.min(...res.sideTotals);
     ev.potNow = room.pot;
   } else {
     const s = res.winnerSide;
@@ -88,7 +112,7 @@ function finalizeIfFinished(room, wasPlaying) {
     if (room.entered[s]) {
       room.scores[s] += gained;
     } else {
-      // Qayda 1-2-6: saya düşmək üçün cəmi ən azı 13 xal, ən çox 3 cəhddə
+      // Qayda 1-2-6: saya düşmək üçün cəmi ən azı 13 xal, ardıcıl ən çox 3 qələbədə
       room.pending[s] += gained;
       room.attempts[s] += 1;
       if (room.pending[s] >= ENTRY) {
@@ -113,6 +137,26 @@ function finalizeIfFinished(room, wasPlaying) {
   room.lastRound = ev;
 }
 
+// Oyun bağlıdır: bazardan çəkmək mümkün deyil və heç kimin gedişi yoxdur → raund avtomatik bitir
+function isBlocked(g) {
+  if (!g || g.status !== "playing") return false;
+  const keep = g.hands.length === 2 ? 2 : 1; // bazarda həmişə qalan daş sayı (client-dəki bazarKeep ilə eyni)
+  if (g.boneyard.length > keep) return false;
+  for (let seat = 0; seat < g.hands.length; seat++) {
+    if (engine.legalMoves(g, seat).length > 0) return false;
+  }
+  return true;
+}
+
+function settleBlocked(room) {
+  const g = room.game;
+  if (!isBlocked(g)) return false;
+  g.status = "finished";
+  g.reason = "blocked";
+  finalizeIfFinished(room, true);
+  return true;
+}
+
 // Növbəti raundu kim başlayır: daşlarını bitirən; bağlı oyunda qalib tərəfin ilk oyunçusu; bərabərlikdə əvvəlki başlayan
 function nextStarter(room) {
   const lr = room.lastRound;
@@ -133,7 +177,7 @@ function viewFor(room, seat) {
     entered: room.entered, wins: room.wins, pot: room.pot,
     round: room.round, target: TARGET, entry: ENTRY, entryAttempts: ENTRY_ATTEMPTS,
     matchWinner: room.matchWinner, dry: room.dry, dryValue: DRY_WIN_VALUE,
-    volatile: !USE_KV, // KV qoşulmayıbsa otaq RAM-da saxlanır və itə bilər (client xəbərdarlıq göstərir)
+    volatile: !USE_KV, // KV qoşulmayıbsa otaq RAM-da saxlanılır və itə bilər (client xəbərdarlıq göstərir)
   };
   if (!g) return view;
 
@@ -186,15 +230,18 @@ module.exports = async (req, res) => {
     const seat = room.players.findIndex((p) => p.token === input.token);
     if (seat === -1) return res.status(403).json({ error: "Etibarsız token" });
 
-    if (action === "state") return res.json({ view: viewFor(room, seat) });
+    if (action === "state") {
+      if (room.game && settleBlocked(room)) await save(room); // bağlı qalmış oyunu bitir
+      return res.json({ view: viewFor(room, seat) });
+    }
 
     if (action === "start") {
       if (seat !== 0) return res.status(403).json({ error: "Oyunu yalnız otağı yaradan başlada bilər" });
       if (room.game) return res.json({ view: viewFor(room, seat) });
       const n = room.players.length;
-      if (n !== 2 && n !== 4) return res.status(400).json({ error: "Oyun 2 nəfər (1×1) və ya 4 nəfər (2×2) ilə başlayır" });
-      room.sides = engine.makeSides(n);
-      room.wins = [0, 0];
+      if (n < 2 || n > 4) return res.status(400).json({ error: "Oyun 2 nəfər (1×1), 3 nəfər (hər kəs özü üçün) və ya 4 nəfər (2×2) ilə başlayır" });
+      room.sides = n === 3 ? [[0], [1], [2]] : engine.makeSides(n);
+      room.wins = room.sides.map(() => 0);
       resetMatch(room);
       startRound(room, { open11: true }); // oyun [1|1] qoşa ilə başlayır
       await save(room);
@@ -228,6 +275,7 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: "Naməlum action" });
     }
     finalizeIfFinished(room, wasPlaying);
+    if (room.game.status === "playing") settleBlocked(room); // hərəkətdən sonra oyun bağlı qalıbsa, bitir
 
     await save(room);
     return res.json({ view: viewFor(room, seat) });

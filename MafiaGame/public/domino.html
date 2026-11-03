@@ -176,7 +176,7 @@
       <input id="code" placeholder="KOD" maxlength="6" autocapitalize="characters" autocomplete="off">
       <button id="btnJoin" class="ghostbtn">Qoşul</button>
     </div>
-    <p class="hint">2 nəfər (1×1) və ya 4 nəfər (2×2) · [1|1] qoşa ilə başlanır · ilk 101 xala çatan qalib gəlir</p>
+    <p class="hint">2 nəfər (1×1), 3 nəfər (hər kəs özü üçün) və ya 4 nəfər (2×2) · [1|1] qoşa ilə başlanır · ilk 101 xala çatan qalib gəlir</p>
   </div>
 
   <!-- 2) Gözləmə otağı -->
@@ -420,12 +420,12 @@ function render() {
     const np = view.players.length;
     $("waitList").innerHTML = view.players.map((n, i) =>
       `<li>${i + 1}. ${esc(n)}${i === view.you ? " (sən)" : ""}${i === 0 ? " 👑" : ""}${np === 4 ? ` — ${i % 2 === 0 ? "A" : "B"} tərəfi` : ""}</li>`).join("");
-    const okCount = np === 2 || np === 4;
+    const okCount = np >= 2 && np <= 4;
     $("btnStart").classList.toggle("hidden", !view.host);
     $("btnStart").disabled = !okCount;
     $("waitHint").textContent = view.host
-      ? (np < 2 ? "Ən azı 2 oyunçu lazımdır" : np === 3 ? "3 nəfərlə olmaz: 4-cü oyunçunu gözlə (2×2) və ya 2 nəfər ol" :
-         np === 2 ? "1×1 oynamaq üçün başlat (və ya 4-cü oyunçuya qədər gözlə)" : "2×2 komanda oyunu hazırdır")
+      ? (np < 2 ? "Ən azı 2 oyunçu lazımdır" : np === 3 ? "3 nəfərlə hər kəs özü üçün oynayır (və ya 4-cü oyunçunu gözlə: 2×2)" :
+         np === 2 ? "1×1 oynamaq üçün başlat (və ya digər oyunçuları gözlə)" : "2×2 komanda oyunu hazırdır")
       : "Otağı yaradan oyunu başlatmağı gözləyin...";
     return;
   }
@@ -736,6 +736,8 @@ function renderOverlay() {
     else if (lr.reset) lines.push(`⚠️ ${sideName(w)} ${view.entryAttempts} cəhddə ${view.entry} xala çatmadı — toplanan xallar sıfırlandı.`);
     else if (!view.entered[w]) lines.push(`ℹ️ ${sideName(w)} hələ sayaya düşməyib: ${lr.pending}/${view.entry} xal, cəhd ${lr.attempts}/${view.entryAttempts}.`);
   }
+
+  (lr.dropped || []).forEach((i) => lines.push(`❌ ${sideName(i)} raundu qazanmadı — sayaya düşməmiş xalları silindi.`));
 
   const rows = view.players.map((n, i) => {
     const sum = lr.hands[i].reduce((a, t) => a + t.a + t.b, 0);
