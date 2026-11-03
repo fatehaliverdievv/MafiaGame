@@ -513,23 +513,26 @@ function renderHand() {
   }).join("") || "<em>Daşın qalmayıb</em>";
 }
 
-// Gedişi yoxdursa və bazardan daş çəkmək olmursa, pas avtomatik verilir (Pas düyməsi yoxdur)
+// Gedişi yoxdursa: bazarda daş varsa avtomatik çəkilir, yoxdursa pas avtomatik verilir
 let autoPassKey = "", autoPassT = null;
 function autoPass() {
-  const stuck = view.status === "playing" && view.turn === view.you && view.moves.length === 0 && view.boneyardCount <= bazarKeep();
+  const stuck = view.status === "playing" && view.turn === view.you && view.moves.length === 0;
   if (!stuck) { clearTimeout(autoPassT); autoPassKey = ""; return; }
-  const key = JSON.stringify([view.round, view.turn, view.boneyardCount, view.board.length, view.handCounts]);
+  const canDraw = view.boneyardCount > bazarKeep();
+  const action = canDraw ? "draw" : "pass";
+  const key = JSON.stringify([action, view.round, view.turn, view.boneyardCount, view.board.length, view.handCounts]);
   if (key === autoPassKey) return;
   autoPassKey = key;
   clearTimeout(autoPassT);
   const attempt = (delay) => {
     autoPassT = setTimeout(() => {
       if (!view || autoPassKey !== key) return;
-      act({ action: "pass" });
+      pendingSlot = null;
+      act({ action });
       attempt(2500); // alınmasa yenidən cəhd et (vəziyyət dəyişsə dayanır)
     }, delay);
   };
-  attempt(1200);
+  attempt(canDraw ? 900 : 1200);
 }
 
 // Bazarda həmişə qalmalı daş sayı: 2 nəfərdə 2, 3-4 nəfərdə 1
@@ -547,7 +550,7 @@ function renderActions() {
   if (view.status === "finished") msg = "Raund bitdi";
   else if (!myTurn) msg = `${view.players[view.turn]} oynayır...`;
   else if (myTurn && view.opening !== null && view.board.length === 0) msg = "Oyun [1|1] qoşa daşı ilə başlayır — onu masaya sürüşdür";
-  else if (stuck) msg = view.boneyardCount > bazarKeep() ? "Gedişin yoxdur — bazardan daş çək" : "Gedişin yoxdur — avtomatik pas verilir…";
+  else if (stuck) msg = view.boneyardCount > bazarKeep() ? "Gedişin yoxdur — bazardan daş avtomatik çəkilir…" : "Gedişin yoxdur — avtomatik pas verilir…";
   else msg = "Sənin sıran — daşı masaya sürüşdür";
   $("status").textContent = msg;
   $("status").classList.toggle("mine", myTurn);
