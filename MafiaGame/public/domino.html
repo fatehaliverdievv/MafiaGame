@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Domino</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #14532d; color: #fff; margin: 0; padding: 16px; }
+  h1 { margin: 0 0 12px; }
+  .box { max-width: 900px; margin: 0 auto; }
+  input, button { font-size: 16px; padding: 8px 12px; border-radius: 8px; border: 0; }
+  button { background: #facc15; color: #000; cursor: pointer; font-weight: 600; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+  .board { background: #166534; border-radius: 12px; padding: 12px; min-height: 90px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .tile { display: inline-flex; background: #fff; color: #000; border-radius: 6px; font-weight: 700; font-size: 18px; border: 2px solid #000; overflow: hidden; }
+  .tile span { padding: 8px 10px; min-width: 14px; text-align: center; }
+  .tile i { width: 2px; background: #000; }
+  .hand .tile { cursor: pointer; }
+  .hand .tile.playable { outline: 3px solid #facc15; }
+  .hand .tile.selected { outline: 3px solid #f97316; }
+  .msg { margin: 8px 0; min-height: 24px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>🁣 Domino</h1>
+
+  <div id="lobby">
+    <div class="row"><input id="name" placeholder="Adın" maxlength="20"></div>
+    <div class="row">
+      <button id="btnCreate">Otaq yarat</button>
+      <input id="code" placeholder="Otaq kodu" maxlength="6" style="width:120px;text-transform:uppercase">
+      <button id="btnJoin">Qoşul</button>
+    </div>
+  </div>
+
+  <div id="game" class="hidden">
+    <div class="msg" id="info"></div>
+    <div class="msg" id="opp"></div>
+    <div class="board" id="board"></div>
+    <h3>Sənin daşların</h3>
+    <div class="row hand" id="hand"></div>
+    <div class="row" id="sides"></div>
+    <div class="row">
+      <button id="btnDraw">Bazardan çək</button>
+      <button id="btnPass">Pas</button>
+    </div>
+  </div>
+
+  <div class="msg" id="err" style="color:#fecaca"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let token = null, code = null, view = null, selected = null, timer = null;
+
+async function api(body) {
+  const res = await fetch("/api/domino", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Xəta");
+  return data;
+}
+
+async function poll() {
+  try {
+    const q = new URLSearchParams({ action: "state", code, token });
+    const res = await fetch("/api/domino?" + q);
+    const data = await res.json();
+    if (res.ok) { view = data.view; render(); }
+  } catch (e) { /* növbəti cəhdi gözlə */ }
+}
+
+function enter(data) {
+  token = data.token; code = data.view.code; view = data.view;
+  $("lobby").classList.add("hidden");
+  $("game").classList.remove("hidden");
+  render();
+  timer = setInterval(poll, 1500);
+}
+
+const tileEl = (t) => `<div class="tile"><span>${t.a}</span><i></i><span>${t.b}</span></div>`;
+
+function render() {
+  $("err").textContent = "";
+  if (!view.started) {
+    $("info").textContent = `Otaq kodu: ${view.code} — rəqib gözlənilir...`;
+    $("opp").textContent = ""; $("board").innerHTML = ""; $("hand").innerHTML = "";
+    $("btnDraw").disabled = $("btnPass").disabled = true;
+    return;
+  }
+
+  const myTurn = view.status === "playing" && view.turn === view.you;
+  const oppIdx = 1 - view.you;
+
+  if (view.status === "finished") {
+    clearInterval(timer);
+    const why = view.reason === "blocked" ? " (oyun bloklandı)" : "";
+    $("info").textContent = view.winner === null ? "Bərabərlik!" :
+      (view.winner === view.you ? "🎉 Qazandın!" : "Məğlub oldun.") + why;
+  } else {
+    $("info").textContent = myTurn ? "Sənin sıran" : `${view.players[view.turn]} oynayır...`;
+  }
+
+  $("opp").textContent = `${view.players[oppIdx]}: ${view.handCounts[oppIdx]} daş | Bazar: ${view.boneyardCount}`;
+  $("board").innerHTML = view.board.map(tileEl).join("") || "<em>Masa boşdur</em>";
+
+  const playable = new Set(view.moves.map((m) => m.tileId));
+  $("hand").innerHTML = view.hand.map((t) => {
+    const cls = "tile" + (playable.has(t.id) ? " playable" : "") + (selected === t.id ? " selected" : "");
+    return `<div class="${cls}" data-id="${t.id}"><span>${t.a}</span><i></i><span>${t.b}</span></div>`;
+  }).join("");
+
+  // Seçilmiş daş hər iki tərəfə uyğundursa tərəf seçdir
+  const sides = selected === null ? [] : view.moves.filter((m) => m.tileId === selected);
+  $("sides").innerHTML = sides.length > 1
+    ? sides.map((m) => `<button data-side="${m.side}">${m.side === "left" ? "◀ Sola" : "Sağa ▶"}</button>`).join("")
+    : "";
+
+  const noMoves = myTurn && view.moves.length === 0;
+  $("btnDraw").disabled = !(noMoves && view.boneyardCount > 0);
+  $("btnPass").disabled = !(noMoves && view.boneyardCount === 0);
+}
+
+async function act(body) {
+  try {
+    const data = await api({ code, token, ...body });
+    view = data.view; selected = null; render();
+  } catch (e) { $("err").textContent = e.message; }
+}
+
+$("hand").addEventListener("click", (e) => {
+  const el = e.target.closest(".tile"); if (!el || !view) return;
+  const id = Number(el.dataset.id);
+  const moves = view.moves.filter((m) => m.tileId === id);
+  if (moves.length === 0) return;
+  if (moves.length === 1) return act({ action: "play", tileId: id, side: moves[0].side });
+  selected = id; render();
+});
+
+$("sides").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b || selected === null) return;
+  act({ action: "play", tileId: selected, side: b.dataset.side });
+});
+
+$("btnDraw").onclick = () => act({ action: "draw" });
+$("btnPass").onclick = () => act({ action: "pass" });
+
+$("btnCreate").onclick = async () => {
+  try { enter(await api({ action: "create", name: $("name").value })); }
+  catch (e) { $("err").textContent = e.message; }
+};
+$("btnJoin").onclick = async () => {
+  try { enter(await api({ action: "join", name: $("name").value, code: $("code").value })); }
+  catch (e) { $("err").textContent = e.message; }
+};
+</script>
+</body>
+</html>
