@@ -204,7 +204,6 @@
     <div class="hand" id="hand"></div>
     <div class="tools">
       <button id="btnDraw">Bazardan çək</button>
-      <button id="btnPass" class="ghostbtn">Pas</button>
     </div>
   </div>
 </div>
@@ -497,24 +496,23 @@ function renderHand() {
   }).join("") || "<em>Daşın qalmayıb</em>";
 }
 
-// Gedişi yoxdursa və bazardan daş çəkmək olmursa, pas avtomatik verilir
-let autoPassKey = "", autoPassT1 = null, autoPassT2 = null, passFallback = false;
+// Gedişi yoxdursa və bazardan daş çəkmək olmursa, pas avtomatik verilir (Pas düyməsi yoxdur)
+let autoPassKey = "", autoPassT = null;
 function autoPass() {
   const stuck = view.status === "playing" && view.turn === view.you && view.moves.length === 0 && view.boneyardCount <= bazarKeep();
-  if (!stuck) {
-    clearTimeout(autoPassT1); clearTimeout(autoPassT2);
-    autoPassKey = ""; passFallback = false;
-    $("btnPass").classList.add("hidden");
-    return;
-  }
-  $("btnPass").classList.toggle("hidden", !passFallback);
+  if (!stuck) { clearTimeout(autoPassT); autoPassKey = ""; return; }
   const key = JSON.stringify([view.round, view.turn, view.boneyardCount, view.board.length, view.handCounts]);
   if (key === autoPassKey) return;
-  autoPassKey = key; passFallback = false;
-  clearTimeout(autoPassT1); clearTimeout(autoPassT2);
-  autoPassT1 = setTimeout(() => { if (view && autoPassKey === key) act({ action: "pass" }); }, 1200);
-  // Avtomatik pas alınmasa, əl ilə "Pas" düyməsi görünür
-  autoPassT2 = setTimeout(() => { if (view && autoPassKey === key) { passFallback = true; $("btnPass").classList.remove("hidden"); } }, 4000);
+  autoPassKey = key;
+  clearTimeout(autoPassT);
+  const attempt = (delay) => {
+    autoPassT = setTimeout(() => {
+      if (!view || autoPassKey !== key) return;
+      act({ action: "pass" });
+      attempt(2500); // alınmasa yenidən cəhd et (vəziyyət dəyişsə dayanır)
+    }, delay);
+  };
+  attempt(1200);
 }
 
 // Bazarda həmişə qalmalı daş sayı: 2 nəfərdə 2, 3-4 nəfərdə 1
@@ -525,7 +523,6 @@ function renderActions() {
   const stuck = myTurn && view.moves.length === 0;
   $("btnDraw").disabled = !(stuck && view.boneyardCount > bazarKeep());
   $("btnDraw").textContent = `Bazardan çək (${view.boneyardCount})`;
-  $("btnPass").disabled = !(stuck && view.boneyardCount <= bazarKeep());
   let msg;
   if (view.status === "finished") msg = "Raund bitdi";
   else if (!myTurn) msg = `${view.players[view.turn]} oynayır...`;
@@ -840,7 +837,6 @@ $("bazar").addEventListener("click", (e) => {
   pendingSlot = t ? Number(t.dataset.slot) : null;
   act({ action: "draw" });
 });
-$("btnPass").onclick = () => act({ action: "pass" });
 $("btnStart").onclick = () => act({ action: "start" });
 $("btnLeave").onclick = () => leave("");
 $("btnCopy").onclick = async () => {
