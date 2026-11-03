@@ -43,6 +43,7 @@
   .chip { background:var(--neutral); border:1px solid var(--line); padding:6px 14px; border-radius:999px; font-size:13px; font-weight:700; color:var(--gold); }
   #err { color:var(--error); font-size:13px; font-weight:600; min-height:22px; margin:6px 0; }
   #err:empty { min-height:0; margin:0; }
+  .notice { margin:6px 0; padding:8px 12px; border-radius:12px; background:rgba(250,204,21,.15); border:1px solid rgba(250,204,21,.4); color:#fde68a; font-size:12.5px; line-height:1.45; }
 
   .card { background:var(--panel); border:1px solid var(--line); border-radius:20px; box-shadow:var(--shadow); padding:22px; margin-top:16px;
           backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
@@ -80,19 +81,26 @@
            background:radial-gradient(ellipse at center,#1f8a4f 0%,#14532d 70%,#0d3a1f 100%);
            box-shadow:inset 0 0 50px rgba(0,0,0,.55), 0 0 0 2px #2b1a0b, 0 14px 34px rgba(0,0,0,.5); }
   .bt { position:absolute; filter:drop-shadow(0 3px 3px rgba(0,0,0,.55)); }
-  .zone { position:absolute; display:none; border:2px dashed var(--gold); border-radius:10px; background:rgba(250,204,21,.14); }
-  .zone.show { display:block; animation:pulse 1s infinite; }
-  .zone.hot { background:rgba(250,204,21,.42); border-style:solid; }
+  .zone { position:absolute; display:none; border-radius:10px; }
+  .zone.show { display:block; }
+  .board.pick .zone.show { border:2px dashed rgba(255,255,255,.7); background:rgba(255,255,255,.12); }
+  .zone.hot { background:rgba(255,255,255,.10); }
   @keyframes pulse { 50% { background:rgba(250,204,21,.28); } }
   .emptymsg { position:absolute; inset:0; display:grid; place-items:center; text-align:center; padding:12px; opacity:.75; pointer-events:none; }
 
+  .bazarWrap { margin-top:12px; padding:10px 14px 12px; background:rgba(0,0,0,.25); border:1px solid var(--line); border-radius:16px; }
+  .bazar { position:relative; margin-top:8px; }
+  .bzt { position:absolute; border-radius:4px; background:linear-gradient(135deg,#f4efdb,#cfc6a5); border:1px solid #8a8366;
+         box-shadow:0 2px 5px rgba(0,0,0,.55); transition:filter .2s ease; }
+  .bazar.canDraw .bzt { cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,.55), 0 0 0 1px rgba(250,204,21,.35); }
+  .bazar.canDraw .bzt:hover { filter:brightness(1.1) drop-shadow(0 0 6px rgba(250,204,21,.9)); z-index:2; }
   .status { margin:12px 0 4px; padding:11px 16px; border-radius:14px; font-weight:800; font-size:14.5px; text-align:center;
             background:var(--neutral); border:1px solid var(--line); color:var(--soft); min-height:24px; }
   .status.mine { background:linear-gradient(180deg,#fde047,var(--gold-d)); border-color:transparent; color:#1a1a1a; box-shadow:0 0 20px rgba(250,204,21,.4); }
   .hand { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; padding:16px 10px 12px; min-height:100px;
           background:linear-gradient(180deg,#3b2410,#2b1a0b); border:2px solid #5b3a1a; border-radius:18px; color:var(--muted);
           box-shadow:inset 0 4px 14px rgba(0,0,0,.5); }
-  .htile { touch-action:none; user-select:none; -webkit-user-select:none; cursor:default; transition:transform .25s var(--spring); filter:drop-shadow(0 4px 4px rgba(0,0,0,.55)); }
+  .htile { touch-action:none; user-select:none; -webkit-user-select:none; cursor:grab; transition:transform .25s var(--spring); filter:drop-shadow(0 4px 4px rgba(0,0,0,.55)); }
   .htile.play { cursor:grab; }
   .htile.play:hover { transform:translateY(-6px); }
   .htile.dim { opacity:.5; }
@@ -154,6 +162,7 @@
     </div>
   </div>
   <div id="err" role="alert"></div>
+  <div class="notice hidden" id="notice"></div>
 
   <!-- 1) Giriş -->
   <div id="lobby" class="card">
@@ -185,6 +194,10 @@
   <div id="table" class="hidden">
     <div class="scores" id="scores"></div>
     <div class="board" id="board"></div>
+    <div class="bazarWrap hidden" id="bazarWrap">
+      <div class="eyebrow" id="bazarLabel"></div>
+      <div class="bazar" id="bazar"></div>
+    </div>
     <div class="status" id="status" aria-live="polite"></div>
     <div class="hand" id="hand"></div>
     <div class="tools">
@@ -214,19 +227,16 @@ function tileSVG(first, second, vertical, w, h) {
     return `<svg width="${w}" height="${h}" viewBox="0 0 100 50">
       <rect x="1" y="1" width="98" height="48" rx="7" fill="url(#ivory)" stroke="#b9b08f" stroke-width="1.5"/>
       <line x1="50" y1="8" x2="50" y2="42" stroke="#2b2b2b" stroke-width="2.4"/>
-      ${halfPips(first, 0, 0)}${halfPips(second, 50, 0)}
-      <circle cx="50" cy="25" r="2.8" fill="#c9a227" stroke="#7a6212" stroke-width=".6"/></svg>`;
+      ${halfPips(first, 0, 0)}${halfPips(second, 50, 0)}</svg>`;
   }
   return `<svg width="${w}" height="${h}" viewBox="0 0 50 100">
     <rect x="1" y="1" width="48" height="98" rx="7" fill="url(#ivory)" stroke="#b9b08f" stroke-width="1.5"/>
     <line x1="8" y1="50" x2="42" y2="50" stroke="#2b2b2b" stroke-width="2.4"/>
-    ${halfPips(first, 0, 0)}${halfPips(second, 0, 50)}
-    <circle cx="25" cy="50" r="2.8" fill="#c9a227" stroke="#7a6212" stroke-width=".6"/></svg>`;
+    ${halfPips(first, 0, 0)}${halfPips(second, 0, 50)}</svg>`;
 }
 
 function layoutBoard(board, origin, W, u) {
   const pitch = 2.5 * u;
-  const lim = W / 2 - 14;
   const isD = (t) => t.a === t.b;
   const items = [];
 
@@ -235,16 +245,16 @@ function layoutBoard(board, origin, W, u) {
     return { x: x0, y: sign * row * pitch - h / 2, w: x1 - x0, h };
   };
 
-  function walk(startEdge, startDir, sign, list, flipDir, baseIndex, indexStep) {
-    let edge = startEdge, dir = startDir, row = 0;
+  // Hər qolda ilk sıra firstMax daşdan sonra, sonrakılar 6 daşdan sonra dönür.
+  // Sağ qol aşağıya, sol qol yuxarıya dolanır; istiqamət hər dönüşdə tərsinə çevrilir.
+  function walk(startEdge, startDir, sign, list, flipDir, baseIndex, indexStep, firstMax) {
+    let edge = startEdge, dir = startDir, row = 0, run = 0, runMax = firstMax;
     const step = (tw) => {
+      if (run >= runMax) { row += 1; dir = -dir; run = 0; runMax = 6; }
       let x0, x1;
       if (dir === 1) { x0 = edge; x1 = edge + tw; } else { x1 = edge; x0 = edge - tw; }
-      if (x1 > lim || x0 < -lim) {
-        row += 1; dir = -dir;
-        if (dir === 1) { x0 = edge; x1 = edge + tw; } else { x1 = edge; x0 = edge - tw; }
-      }
       edge = dir === 1 ? x1 : x0;
+      run += 1;
       return { x0, x1 };
     };
     list.forEach((t, k) => {
@@ -269,16 +279,20 @@ function layoutBoard(board, origin, W, u) {
     items.push({ x: -cw / 2, y: -ch / 2, w: cw, h: ch, vertical: cd, l: c.a, r: c.b, index: origin });
     const rightList = board.slice(origin + 1);
     const leftList = board.slice(0, origin).reverse();
-    zones.right = walk(cw / 2, 1, 1, rightList, -1, origin + 1, 1);
-    zones.left = walk(-cw / 2, -1, -1, leftList, 1, origin - 1, -1);
+    zones.right = walk(cw / 2, 1, 1, rightList, -1, origin + 1, 1, 3);
+    zones.left = walk(-cw / 2, -1, -1, leftList, 1, origin - 1, -1, 2);
   }
 
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  [...items, ...Object.values(zones)].forEach((r) => {
-    minX = Math.min(minX, r.x); maxX = Math.max(maxX, r.x + r.w);
-    minY = Math.min(minY, r.y); maxY = Math.max(maxY, r.y + r.h);
-  });
-  return { items, zones, minX, maxX, minY, maxY };
+  const box = (arr) => arr.reduce((b, r) => ({
+    minX: Math.min(b.minX, r.x), maxX: Math.max(b.maxX, r.x + r.w),
+    minY: Math.min(b.minY, r.y), maxY: Math.max(b.maxY, r.y + r.h),
+  }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+  const all = [...items, ...Object.values(zones)];
+  const ib = box(items.length ? items : all);
+  const ab = box(all);
+  const cx = (ib.minX + ib.maxX) / 2, cy = (ib.minY + ib.maxY) / 2;
+  const halfH = Math.max(cy - ab.minY, ab.maxY - cy) + 18;
+  return { items, zones, cx, cy, halfH };
 }
 // ==LAYOUT-END==
 
@@ -286,7 +300,7 @@ function layoutBoard(board, origin, W, u) {
 const $ = (id) => document.getElementById(id);
 const SESSION_KEY = "domino_session";
 let S = { code: null, token: null };
-let view = null, lastSig = "", selected = null, drag = null, pendingRender = false, timer = null;
+let view = null, lastSig = "", selected = null, drag = null, pendingRender = false, timer = null, handOrder = [], failCount = 0;
 
 function showErr(m) { $("err").textContent = m || ""; }
 
@@ -304,6 +318,7 @@ function clearSession() { try { localStorage.removeItem(SESSION_KEY); } catch (e
 
 function enter(data) {
   S = { code: data.view.code, token: data.token || S.token };
+  failCount = 0;
   saveSession();
   clearInterval(timer);
   timer = setInterval(poll, 1500);
@@ -312,9 +327,9 @@ function enter(data) {
 
 function leave(msg) {
   clearInterval(timer); clearSession();
-  S = { code: null, token: null }; view = null; lastSig = ""; selected = null;
+  S = { code: null, token: null }; view = null; lastSig = ""; selected = null; handOrder = [];
   $("lobby").classList.remove("hidden");
-  ["wait", "table", "overlay", "chipCode", "chipRound", "btnLeave"].forEach((id) => $(id).classList.add("hidden"));
+  ["wait", "table", "overlay", "notice", "chipCode", "chipRound", "btnLeave"].forEach((id) => $(id).classList.add("hidden"));
   showErr(msg || "");
 }
 
@@ -323,7 +338,13 @@ async function poll() {
     const q = new URLSearchParams({ action: "state", code: S.code, token: S.token });
     const res = await fetch("/api/domino?" + q);
     const data = await res.json();
-    if (res.status === 404 || res.status === 403) return leave("Otaq tapılmadı (bitib və ya server yenilənib)");
+    if (res.status === 404 || res.status === 403) {
+      // Bir dəfəlik uğursuzluq (serverless yenidən başlaması) üçün dərhal çıxma — bir neçə dəfə yenidən yoxla
+      failCount += 1;
+      if (failCount >= 6) return leave("Otaq tapılmadı. Server yaddaşı sıfırlanıb ola bilər — yeni otaq yaradın.");
+      return;
+    }
+    failCount = 0;
     if (res.ok) applyView(data.view);
   } catch (e) { /* növbəti cəhd */ }
 }
@@ -348,6 +369,8 @@ async function act(body) {
 // ---------- Render ----------
 function render() {
   if (!view) return;
+  $("notice").textContent = "⚠️ Server yaddaşı müvəqqətidir (Vercel KV qoşulmayıb) — otaq istənilən an itə bilər.";
+  $("notice").classList.toggle("hidden", !view.volatile);
   $("lobby").classList.add("hidden");
   $("btnLeave").classList.remove("hidden");
   $("chipCode").textContent = "Otaq: " + view.code; $("chipCode").classList.remove("hidden");
@@ -376,7 +399,7 @@ function render() {
   const legal = new Set(view.moves.map((m) => m.tileId));
   if (selected !== null && !legal.has(selected)) selected = null;
 
-  renderScores(); renderBoard(); renderHand(); renderActions(); renderOverlay();
+  renderScores(); renderBoard(); renderHand(); renderActions(); renderBazar(); renderOverlay();
 }
 
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
@@ -408,24 +431,32 @@ function renderScores() {
   $("scores").innerHTML = html;
 }
 
-function boardU(W) { return Math.max(16, Math.min(34, Math.floor((W - 40) / 17))); }
+function boardU(W) { return Math.max(16, Math.min(34, Math.floor((W - 40) / 14))); }
 
 function renderBoard() {
   const el = $("board");
   const W = el.clientWidth || 800;
   const u = boardU(W);
   const L = layoutBoard(view.board, view.origin || 0, W, u);
-  const padY = 16;
-  const H = Math.max(200, L.maxY - L.minY + padY * 2);
+  const H = Math.max(200, Math.round(2 * L.halfH));
   el.style.height = H + "px";
-  const px = (r) => `left:${r.x + W / 2}px;top:${r.y - L.minY + padY}px;width:${r.w}px;height:${r.h}px`;
+  const px = (r) => `left:${r.x - L.cx + W / 2}px;top:${r.y - L.cy + H / 2}px;width:${r.w}px;height:${r.h}px`;
 
   let html = L.items.map((it) =>
     `<div class="bt" style="${px(it)}">${tileSVG(it.l, it.r, it.vertical, it.w, it.h)}</div>`).join("");
   Object.entries(L.zones).forEach(([side, r]) => { html += `<div class="zone" data-side="${side}" style="${px(r)}"></div>`; });
   if (view.board.length === 0) html += `<div class="emptymsg">Masa boşdur — ilk daşı bura sürüşdür</div>`;
   el.innerHTML = html;
+  el.classList.toggle("pick", selected !== null);
   if (selected !== null) showZones(selected);
+}
+
+function orderedHand() {
+  const byId = new Map(view.hand.map((t) => [t.id, t]));
+  handOrder = handOrder.filter((id) => byId.has(id));
+  const known = new Set(handOrder);
+  view.hand.filter((t) => !known.has(t.id)).sort((x, y) => x.a - y.a || x.b - y.b).forEach((t) => handOrder.push(t.id));
+  return handOrder.map((id) => byId.get(id));
 }
 
 function renderHand() {
@@ -434,7 +465,7 @@ function renderHand() {
   const hu = vw < 380 ? 30 : vw < 520 ? 36 : 46;
   const legal = new Set(view.moves.map((m) => m.tileId));
   const myTurn = view.status === "playing" && view.turn === view.you;
-  const tiles = [...view.hand].sort((x, y) => x.a - y.a || x.b - y.b);
+  const tiles = orderedHand();
   el.innerHTML = tiles.map((t) => {
     const cls = "htile" + (legal.has(t.id) ? " play" : myTurn ? " dim" : "") + (selected === t.id ? " sel" : "");
     return `<div class="${cls}" data-id="${t.id}">${tileSVG(t.a, t.b, true, hu, hu * 2)}</div>`;
@@ -455,6 +486,38 @@ function renderActions() {
   else msg = "Sənin sıran — daşı masaya sürüşdür";
   $("status").textContent = msg;
   $("status").classList.toggle("mine", myTurn);
+}
+
+// Bazar: daşlar arxası üstə, qarışıq (shuffle) səpələnmiş şəkildə göstərilir
+function rnd(seed) {
+  let t = seed + 0x6D2B79F5;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+function renderBazar() {
+  const wrap = $("bazarWrap"), el = $("bazar"), n = view.boneyardCount;
+  wrap.classList.toggle("hidden", !(n > 0));
+  if (!(n > 0)) return;
+  const can = !$("btnDraw").disabled;
+  $("bazarLabel").textContent = `Bazar · ${n} daş` + (can ? " — toxun və daş çək" : "");
+  el.classList.toggle("canDraw", can);
+  const W = el.clientWidth || 600;
+  const tw = W < 520 ? 20 : 26, th = tw * 2;
+  const cellW = tw * 1.8, cellH = th * 1.15;
+  const cols = Math.max(1, Math.floor(W / cellW));
+  const rows = Math.ceil(n / cols);
+  el.style.height = Math.round(rows * cellH + th * 0.3) + "px";
+  let html = "";
+  for (let i = 0; i < n; i++) {
+    let x = (i % cols) * cellW + (cellW - tw) / 2 + (rnd(i * 3 + 1) - 0.5) * cellW * 0.7;
+    let y = Math.floor(i / cols) * cellH + th * 0.12 + (rnd(i * 3 + 2) - 0.5) * cellH * 0.45;
+    x = Math.max(0, Math.min(W - tw, x)); y = Math.max(0, y);
+    const rot = Math.round((rnd(i * 3 + 3) - 0.5) * 340);
+    html += `<div class="bzt" style="left:${x}px;top:${y}px;width:${tw}px;height:${th}px;transform:rotate(${rot}deg)"></div>`;
+  }
+  el.innerHTML = html;
 }
 
 function renderOverlay() {
@@ -517,14 +580,31 @@ function pickZone(e) {
   return best;
 }
 
+function inHandArea(e) {
+  const r = $("hand").getBoundingClientRect();
+  return e.clientX >= r.left - 10 && e.clientX <= r.right + 10 && e.clientY >= r.top - 14 && e.clientY <= r.bottom + 14;
+}
+
+// Sürüşdürərkən daşın yerini əl daxilində canlı dəyiş
+function reorderLive(e) {
+  const hand = $("hand");
+  const others = [...hand.querySelectorAll(".htile")].filter((t) => t !== drag.el);
+  let before = null;
+  for (const t of others) {
+    const r = t.getBoundingClientRect();
+    if (e.clientY < r.top || (e.clientY <= r.bottom && e.clientX < r.left + r.width / 2)) { before = t; break; }
+  }
+  if (before) { if (drag.el.nextSibling !== before) hand.insertBefore(drag.el, before); }
+  else if (hand.lastElementChild !== drag.el) hand.appendChild(drag.el);
+}
+
 $("hand").addEventListener("pointerdown", (e) => {
   const el = e.target.closest(".htile");
-  if (!el || !view || view.status !== "playing" || view.turn !== view.you) return;
+  if (!el || !view || view.status !== "playing") return;
   const id = Number(el.dataset.id);
-  const moves = view.moves.filter((m) => m.tileId === id);
-  if (!moves.length) return;
+  const moves = view.turn === view.you ? view.moves.filter((m) => m.tileId === id) : [];
   e.preventDefault();
-  drag = { id, el, moves, sx: e.clientX, sy: e.clientY, moved: false, ghost: null, pid: e.pointerId };
+  drag = { id, el, moves, sx: e.clientX, sy: e.clientY, moved: false, ghost: null, pid: e.pointerId, inHand: false };
 });
 
 window.addEventListener("pointermove", (e) => {
@@ -535,12 +615,18 @@ window.addEventListener("pointermove", (e) => {
     drag.ghost.className = "ghost";
     document.body.appendChild(drag.ghost);
     drag.el.classList.add("ghosted");
-    showZones(drag.id);
+    if (drag.moves.length) showZones(drag.id);
   }
   if (drag.moved) {
     drag.ghost.style.left = e.clientX + "px"; drag.ghost.style.top = e.clientY + "px";
-    const hot = pickZone(e);
-    document.querySelectorAll(".zone").forEach((z) => z.classList.toggle("hot", z === hot));
+    drag.inHand = inHandArea(e);
+    if (drag.inHand) {
+      document.querySelectorAll(".zone").forEach((z) => z.classList.remove("hot"));
+      reorderLive(e);
+    } else {
+      const hot = drag.moves.length ? pickZone(e) : null;
+      document.querySelectorAll(".zone").forEach((z) => z.classList.toggle("hot", z === hot));
+    }
   }
 });
 
@@ -550,13 +636,18 @@ function endDrag(e, cancelled) {
   if (d.ghost) d.ghost.remove();
   if (!cancelled) {
     if (d.moved) {
-      const z = pickZone(e);
-      hideZones();
-      if (z) act({ action: "play", tileId: d.id, side: z.dataset.side });
+      if (d.inHand) {
+        handOrder = [...$("hand").querySelectorAll(".htile")].map((t) => Number(t.dataset.id));
+        hideZones();
+      } else {
+        const z = d.moves.length ? pickZone(e) : null;
+        hideZones();
+        if (z) act({ action: "play", tileId: d.id, side: z.dataset.side });
+      }
     } else if (d.moves.length === 1) {
       act({ action: "play", tileId: d.id, side: d.moves[0].side });
-    } else {
-      selected = d.id; renderHand(); showZones(d.id);
+    } else if (d.moves.length > 1) {
+      selected = d.id; renderHand(); $("board").classList.add("pick"); showZones(d.id);
     }
   } else hideZones();
   if (pendingRender) { pendingRender = false; render(); } else if (d.moved) renderHand();
@@ -572,6 +663,7 @@ $("board").addEventListener("click", (e) => {
 
 // ---------- Düymələr ----------
 $("btnDraw").onclick = () => act({ action: "draw" });
+$("bazar").addEventListener("click", () => { if (!$("btnDraw").disabled) act({ action: "draw" }); });
 $("btnPass").onclick = () => act({ action: "pass" });
 $("btnStart").onclick = () => act({ action: "start" });
 $("btnLeave").onclick = () => leave("");
@@ -589,7 +681,7 @@ $("btnJoin").onclick = async () => {
 $("code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btnJoin").click(); });
 $("name").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btnCreate").click(); });
 
-let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if (view && view.started && !drag) { renderBoard(); renderHand(); } }, 150); });
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if (view && view.started && !drag) { renderBoard(); renderHand(); renderBazar(); } }, 150); });
 window.addEventListener("orientationchange", () => setTimeout(() => { if (view && view.started && !drag) { renderBoard(); renderHand(); } }, 250));
 
 // Səhifə yenilənəndə oyuna qayıt
@@ -599,7 +691,7 @@ window.addEventListener("orientationchange", () => setTimeout(() => { if (view &
     if (!s || !s.code || !s.token) return;
     const q = new URLSearchParams({ action: "state", code: s.code, token: s.token });
     const res = await fetch("/api/domino?" + q);
-    if (!res.ok) return clearSession();
+    if (!res.ok) { if (res.status === 404 || res.status === 403) clearSession(); return; }
     S = s; enter({ view: (await res.json()).view });
   } catch (e) {}
 })();

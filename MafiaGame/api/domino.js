@@ -133,6 +133,7 @@ function viewFor(room, seat) {
     entered: room.entered, wins: room.wins, pot: room.pot,
     round: room.round, target: TARGET, entry: ENTRY, entryAttempts: ENTRY_ATTEMPTS,
     matchWinner: room.matchWinner, dry: room.dry, dryValue: DRY_WIN_VALUE,
+    volatile: !USE_KV, // KV qoşulmayıbsa otaq RAM-da saxlanır və itə bilər (client xəbərdarlıq göstərir)
   };
   if (!g) return view;
 
