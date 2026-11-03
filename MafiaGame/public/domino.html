@@ -2,163 +2,607 @@
 <html lang="az">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Domino</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Domino 101</title>
 <style>
-  body { font-family: system-ui, sans-serif; background: #14532d; color: #fff; margin: 0; padding: 16px; }
-  h1 { margin: 0 0 12px; }
-  .box { max-width: 900px; margin: 0 auto; }
-  input, button { font-size: 16px; padding: 8px 12px; border-radius: 8px; border: 0; }
-  button { background: #facc15; color: #000; cursor: pointer; font-weight: 600; }
-  button:disabled { opacity: .4; cursor: not-allowed; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
-  .board { background: #166534; border-radius: 12px; padding: 12px; min-height: 90px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-  .tile { display: inline-flex; background: #fff; color: #000; border-radius: 6px; font-weight: 700; font-size: 18px; border: 2px solid #000; overflow: hidden; }
-  .tile span { padding: 8px 10px; min-width: 14px; text-align: center; }
-  .tile i { width: 2px; background: #000; }
-  .hand .tile { cursor: pointer; }
-  .hand .tile.playable { outline: 3px solid #facc15; }
-  .hand .tile.selected { outline: 3px solid #f97316; }
-  .msg { margin: 8px 0; min-height: 24px; }
-  .hidden { display: none; }
+  :root {
+    --gold:#facc15; --gold-d:#eab308; --ink:#f1f5ee; --muted:#9db5a3; --soft:#c7d9cb; --error:#fca5a5;
+    --line:rgba(255,255,255,.10); --field:rgba(255,255,255,.18); --neutral:rgba(0,0,0,.30);
+    --panel:rgba(8,32,19,.72); --felt:#14532d;
+    --spring:cubic-bezier(0.34,1.3,0.64,1);
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; font-family:"Segoe UI", system-ui, -apple-system, sans-serif; color:var(--ink); min-height:100vh;
+         background:radial-gradient(ellipse at top,#1f6b3d 0%,#0f3d22 55%,#07200f 100%) fixed; }
+  .wrap { max-width:1000px; margin:0 auto; padding:12px; padding-bottom:max(12px, env(safe-area-inset-bottom)); }
+  h1 { margin:0; font-size:22px; font-weight:800; letter-spacing:.5px; text-shadow:0 2px 8px rgba(0,0,0,.4); }
+
+  button { font:inherit; font-size:13.5px; font-weight:800; padding:10px 20px; min-height:42px; border:0; border-radius:12px;
+           background:linear-gradient(180deg,#fde047,var(--gold-d)); color:#1a1a1a; cursor:pointer;
+           box-shadow:0 4px 0 #a16207, 0 8px 18px rgba(0,0,0,.35);
+           transition:transform .15s var(--spring), box-shadow .15s ease, filter .2s ease; }
+  button:hover:not(:disabled) { transform:translateY(-2px); filter:brightness(1.06); }
+  button:active:not(:disabled) { transform:translateY(3px); box-shadow:0 1px 0 #a16207, 0 3px 8px rgba(0,0,0,.35); }
+  button:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+  button:disabled { opacity:.4; cursor:not-allowed; box-shadow:none; }
+  button.ghostbtn { background:rgba(255,255,255,.10); color:var(--ink); border:1px solid var(--field); box-shadow:none; }
+  button.ghostbtn:hover:not(:disabled) { background:rgba(255,255,255,.18); border-color:var(--gold); color:var(--gold); }
+  button.ghostbtn:active:not(:disabled) { transform:scale(.96); box-shadow:none; }
+  button.small { min-height:34px; padding:6px 14px; font-size:12.5px; }
+
+  input { font:inherit; font-size:16px; padding:11px 14px; min-height:44px; border-radius:12px; border:1.5px solid var(--field);
+          background:rgba(0,0,0,.35); color:#fff; outline:none; transition:border-color .2s ease, box-shadow .25s ease; }
+  input::placeholder { color:#7e9a86; }
+  input:hover { border-color:rgba(250,204,21,.5); }
+  input:focus { border-color:var(--gold); box-shadow:0 0 0 4px rgba(250,204,21,.18); }
+
+  .hidden { display:none !important; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:10px 0; }
+  .topbar { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+  .chip { background:var(--neutral); border:1px solid var(--line); padding:6px 14px; border-radius:999px; font-size:13px; font-weight:700; color:var(--gold); }
+  #err { color:var(--error); font-size:13px; font-weight:600; min-height:22px; margin:6px 0; }
+  #err:empty { min-height:0; margin:0; }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:20px; box-shadow:var(--shadow); padding:22px; margin-top:16px;
+          backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+  .eyebrow { font-size:10.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .hint { color:var(--muted); font-size:13px; line-height:1.5; margin:8px 0 0; }
+  #name { flex:1 1 220px; }
+  #code { width:130px; text-transform:uppercase; letter-spacing:3px; font-weight:800; text-align:center; }
+  .bigcode { font-size:40px; font-weight:900; letter-spacing:6px; line-height:1.2; color:var(--gold); text-shadow:0 0 18px rgba(250,204,21,.35); }
+  .codeRow { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .plist { list-style:none; padding:0; margin:10px 0; }
+  .plist li { padding:10px 0; border-bottom:1px solid var(--line); font-weight:600; }
+  .plist li:last-child { border-bottom:none; }
+
+  /* Xal lövhəsi */
+  .scores { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; }
+  .pcard { flex:1 1 220px; background:var(--panel); border:2px solid var(--line); border-radius:16px; box-shadow:var(--shadow);
+           padding:12px 14px; transition:border-color .2s ease, box-shadow .25s ease; }
+  .pcard.turn { border-color:var(--gold); box-shadow:0 0 18px rgba(250,204,21,.45), var(--shadow); }
+  .pname { font-weight:800; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .pscore { font-size:26px; font-weight:900; color:#fff; }
+  .pscore small { font-size:12px; color:var(--muted); font-weight:600; }
+  .bar { height:7px; background:rgba(255,255,255,.12); border-radius:4px; overflow:hidden; margin:6px 0; }
+  .bar i { display:block; height:100%; background:linear-gradient(90deg,#fde047,var(--gold-d)); border-radius:4px; transition:width .4s ease; }
+  .tag { display:inline-block; font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:999px;
+         background:rgba(255,255,255,.10); border:1px solid var(--line); color:var(--soft); margin:2px 4px 2px 0; }
+  .tag.ok { background:rgba(34,197,94,.25); border-color:rgba(34,197,94,.45); color:#86efac; }
+  .tag.warn { background:rgba(250,204,21,.18); border-color:rgba(250,204,21,.4); color:#fde68a; }
+  .pl { display:flex; justify-content:space-between; gap:6px; font-size:14px; padding:2px 0; color:var(--soft); }
+  .pl.cur { color:var(--gold); font-weight:800; }
+  .backs { display:flex; gap:2px; flex-wrap:wrap; }
+  .back { width:12px; height:22px; border-radius:3px; background:linear-gradient(#f4efdb,#cfc6a5); border:1px solid #8a8366; box-shadow:0 1px 2px rgba(0,0,0,.4); }
+
+  /* Masa */
+  .board { position:relative; border-radius:22px; border:8px solid #4a2e14; min-height:200px; overflow:hidden; color:#fff;
+           background:radial-gradient(ellipse at center,#1f8a4f 0%,#14532d 70%,#0d3a1f 100%);
+           box-shadow:inset 0 0 50px rgba(0,0,0,.55), 0 0 0 2px #2b1a0b, 0 14px 34px rgba(0,0,0,.5); }
+  .bt { position:absolute; filter:drop-shadow(0 3px 3px rgba(0,0,0,.55)); }
+  .zone { position:absolute; display:none; border:2px dashed var(--gold); border-radius:10px; background:rgba(250,204,21,.14); }
+  .zone.show { display:block; animation:pulse 1s infinite; }
+  .zone.hot { background:rgba(250,204,21,.42); border-style:solid; }
+  @keyframes pulse { 50% { background:rgba(250,204,21,.28); } }
+  .emptymsg { position:absolute; inset:0; display:grid; place-items:center; text-align:center; padding:12px; opacity:.75; pointer-events:none; }
+
+  .status { margin:12px 0 4px; padding:11px 16px; border-radius:14px; font-weight:800; font-size:14.5px; text-align:center;
+            background:var(--neutral); border:1px solid var(--line); color:var(--soft); min-height:24px; }
+  .status.mine { background:linear-gradient(180deg,#fde047,var(--gold-d)); border-color:transparent; color:#1a1a1a; box-shadow:0 0 20px rgba(250,204,21,.4); }
+  .hand { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; padding:16px 10px 12px; min-height:100px;
+          background:linear-gradient(180deg,#3b2410,#2b1a0b); border:2px solid #5b3a1a; border-radius:18px; color:var(--muted);
+          box-shadow:inset 0 4px 14px rgba(0,0,0,.5); }
+  .htile { touch-action:none; user-select:none; -webkit-user-select:none; cursor:default; transition:transform .25s var(--spring); filter:drop-shadow(0 4px 4px rgba(0,0,0,.55)); }
+  .htile.play { cursor:grab; }
+  .htile.play:hover { transform:translateY(-6px); }
+  .htile.dim { opacity:.5; }
+  .htile.sel { transform:translateY(-12px); filter:drop-shadow(0 0 8px rgba(250,204,21,.8)); }
+  .htile.ghosted { opacity:.25; }
+  .ghost { position:fixed; pointer-events:none; z-index:60; transform:translate(-50%,-50%) scale(1.1); filter:drop-shadow(0 12px 14px rgba(0,0,0,.6)); }
+  .tools { display:flex; gap:8px; justify-content:center; margin-top:12px; flex-wrap:wrap; }
+
+  /* Raund sonu pəncərəsi */
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+             display:grid; place-items:center; z-index:80; padding:12px; }
+  .modal { background:#0f3d22; border:2px solid var(--gold); border-radius:20px; padding:24px; max-width:560px; width:100%;
+           max-height:92vh; overflow:auto; box-shadow:0 0 40px rgba(250,204,21,.25), 0 28px 70px rgba(0,0,0,.6); color:var(--ink); }
+  .modal h2 { margin:0 0 6px; font-size:21px; font-weight:800; color:var(--gold); }
+  .rrow { padding:8px 0; border-bottom:1px solid var(--line); font-size:13.5px; color:var(--soft); }
+  .rrow b { color:#fff; }
+  .rrow .tiles { display:flex; gap:4px; flex-wrap:wrap; margin-top:6px; }
+
+  @media (max-width:760px) { .pcard { flex:1 1 calc(50% - 5px); } }
+  @media (max-width:600px) {
+    .wrap { padding:8px; }
+    h1 { font-size:19px; }
+    .card { padding:16px; border-radius:16px; }
+    .bigcode { font-size:32px; letter-spacing:4px; }
+    #lobby .row > button, #wait .row > button { flex:1 1 140px; }
+    #code { flex:0 0 110px; width:110px; }
+    .scores { gap:8px; }
+    .pcard { padding:10px 12px; }
+    .pscore { font-size:21px; }
+    .board { border-width:5px; border-radius:16px; }
+    .status { font-size:13.5px; padding:9px 12px; }
+    .hand { gap:6px; padding:14px 6px 10px; border-radius:16px; }
+    .tools { position:sticky; bottom:0; z-index:20; margin:10px -8px 0; padding:10px 8px max(10px, env(safe-area-inset-bottom));
+             background:rgba(7,32,15,.92); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border-top:1px solid var(--line); }
+    .tools button { flex:1; }
+    .modal { padding:18px; border-radius:16px; }
+  }
+  @media (max-width:380px) { .pcard { flex:1 1 100%; } .chip { font-size:12px; padding:5px 10px; } }
+  @media (hover:none) { .htile.play:hover, button:hover:not(:disabled) { transform:none; } }
+  @media (prefers-reduced-motion:reduce) { .zone.show { animation:none; } * { transition-duration:.01ms !important; } }
 </style>
 </head>
 <body>
-<div class="box">
-  <h1>🁣 Domino</h1>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="ivory" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffdf2"/><stop offset="1" stop-color="#e9e1c4"/>
+    </linearGradient>
+  </defs>
+</svg>
 
-  <div id="lobby">
-    <div class="row"><input id="name" placeholder="Adın" maxlength="20"></div>
+<div class="wrap">
+  <div class="topbar">
+    <h1>🁢 Domino 101</h1>
+    <div class="row" style="margin:0">
+      <span class="chip hidden" id="chipCode"></span>
+      <span class="chip hidden" id="chipRound"></span>
+      <button class="ghostbtn small hidden" id="btnLeave">Çıx</button>
+    </div>
+  </div>
+  <div id="err" role="alert"></div>
+
+  <!-- 1) Giriş -->
+  <div id="lobby" class="card">
+    <div class="eyebrow">Başla</div>
+    <div class="row"><input id="name" placeholder="Adın" maxlength="20" autocomplete="nickname"></div>
     <div class="row">
       <button id="btnCreate">Otaq yarat</button>
-      <input id="code" placeholder="Otaq kodu" maxlength="6" style="width:120px;text-transform:uppercase">
-      <button id="btnJoin">Qoşul</button>
+      <input id="code" placeholder="KOD" maxlength="6" autocapitalize="characters" autocomplete="off">
+      <button id="btnJoin" class="ghostbtn">Qoşul</button>
     </div>
+    <p class="hint">2 nəfər (1×1) və ya 4 nəfər (2×2) · [1|1] qoşa ilə başlanır · ilk 101 xala çatan qalib gəlir</p>
   </div>
 
-  <div id="game" class="hidden">
-    <div class="msg" id="info"></div>
-    <div class="msg" id="opp"></div>
-    <div class="board" id="board"></div>
-    <h3>Sənin daşların</h3>
-    <div class="row hand" id="hand"></div>
-    <div class="row" id="sides"></div>
+  <!-- 2) Gözləmə otağı -->
+  <div id="wait" class="card hidden">
+    <div class="eyebrow">Otaq kodu (dostlarına göndər)</div>
+    <div class="codeRow">
+      <div class="bigcode" id="waitCode"></div>
+      <button class="ghostbtn small" id="btnCopy">Kopyala</button>
+    </div>
+    <ul class="plist" id="waitList"></ul>
     <div class="row">
-      <button id="btnDraw">Bazardan çək</button>
-      <button id="btnPass">Pas</button>
+      <button id="btnStart">Oyunu başlat</button>
+      <span id="waitHint" class="hint" style="margin:0"></span>
     </div>
   </div>
 
-  <div class="msg" id="err" style="color:#fecaca"></div>
+  <!-- 3) Oyun -->
+  <div id="table" class="hidden">
+    <div class="scores" id="scores"></div>
+    <div class="board" id="board"></div>
+    <div class="status" id="status" aria-live="polite"></div>
+    <div class="hand" id="hand"></div>
+    <div class="tools">
+      <button id="btnDraw">Bazardan çək</button>
+      <button id="btnPass" class="ghostbtn">Pas</button>
+    </div>
+  </div>
 </div>
 
+<div class="overlay hidden" id="overlay"><div class="modal" id="modal"></div></div>
+
 <script>
+// ==LAYOUT-START==
+const PIPS = {
+  0: [], 1: [[1,1]], 2: [[0,0],[2,2]], 3: [[0,0],[1,1],[2,2]],
+  4: [[0,0],[2,0],[0,2],[2,2]], 5: [[0,0],[2,0],[1,1],[0,2],[2,2]],
+  6: [[0,0],[2,0],[0,1],[2,1],[0,2],[2,2]],
+};
+
+function halfPips(v, ox, oy) {
+  return (PIPS[v] || []).map(([c, r]) =>
+    `<circle cx="${ox + 12.5 + c * 12.5}" cy="${oy + 12.5 + r * 12.5}" r="4.6" fill="#141414"/>`).join("");
+}
+
+function tileSVG(first, second, vertical, w, h) {
+  if (!vertical) {
+    return `<svg width="${w}" height="${h}" viewBox="0 0 100 50">
+      <rect x="1" y="1" width="98" height="48" rx="7" fill="url(#ivory)" stroke="#b9b08f" stroke-width="1.5"/>
+      <line x1="50" y1="8" x2="50" y2="42" stroke="#2b2b2b" stroke-width="2.4"/>
+      ${halfPips(first, 0, 0)}${halfPips(second, 50, 0)}
+      <circle cx="50" cy="25" r="2.8" fill="#c9a227" stroke="#7a6212" stroke-width=".6"/></svg>`;
+  }
+  return `<svg width="${w}" height="${h}" viewBox="0 0 50 100">
+    <rect x="1" y="1" width="48" height="98" rx="7" fill="url(#ivory)" stroke="#b9b08f" stroke-width="1.5"/>
+    <line x1="8" y1="50" x2="42" y2="50" stroke="#2b2b2b" stroke-width="2.4"/>
+    ${halfPips(first, 0, 0)}${halfPips(second, 0, 50)}
+    <circle cx="25" cy="50" r="2.8" fill="#c9a227" stroke="#7a6212" stroke-width=".6"/></svg>`;
+}
+
+function layoutBoard(board, origin, W, u) {
+  const pitch = 2.5 * u;
+  const lim = W / 2 - 14;
+  const isD = (t) => t.a === t.b;
+  const items = [];
+
+  const rectFor = (x0, x1, row, sign, d) => {
+    const h = d ? 2 * u : u;
+    return { x: x0, y: sign * row * pitch - h / 2, w: x1 - x0, h };
+  };
+
+  function walk(startEdge, startDir, sign, list, flipDir, baseIndex, indexStep) {
+    let edge = startEdge, dir = startDir, row = 0;
+    const step = (tw) => {
+      let x0, x1;
+      if (dir === 1) { x0 = edge; x1 = edge + tw; } else { x1 = edge; x0 = edge - tw; }
+      if (x1 > lim || x0 < -lim) {
+        row += 1; dir = -dir;
+        if (dir === 1) { x0 = edge; x1 = edge + tw; } else { x1 = edge; x0 = edge - tw; }
+      }
+      edge = dir === 1 ? x1 : x0;
+      return { x0, x1 };
+    };
+    list.forEach((t, k) => {
+      const d = isD(t);
+      const { x0, x1 } = step(d ? u : 2 * u);
+      const flip = !d && dir === flipDir;
+      const r = rectFor(x0, x1, row, sign, d);
+      items.push({ ...r, vertical: d, l: flip ? t.b : t.a, r: flip ? t.a : t.b, index: baseIndex + indexStep * k });
+    });
+    const { x0, x1 } = step(2 * u);
+    return rectFor(x0, x1, row, sign, false);
+  }
+
+  let zones = {};
+  if (board.length === 0) {
+    zones.right = { x: -u, y: -u / 2, w: 2 * u, h: u };
+  } else {
+    const c = board[origin];
+    const cd = isD(c);
+    const cw = cd ? u : 2 * u;
+    const ch = cd ? 2 * u : u;
+    items.push({ x: -cw / 2, y: -ch / 2, w: cw, h: ch, vertical: cd, l: c.a, r: c.b, index: origin });
+    const rightList = board.slice(origin + 1);
+    const leftList = board.slice(0, origin).reverse();
+    zones.right = walk(cw / 2, 1, 1, rightList, -1, origin + 1, 1);
+    zones.left = walk(-cw / 2, -1, -1, leftList, 1, origin - 1, -1);
+  }
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  [...items, ...Object.values(zones)].forEach((r) => {
+    minX = Math.min(minX, r.x); maxX = Math.max(maxX, r.x + r.w);
+    minY = Math.min(minY, r.y); maxY = Math.max(maxY, r.y + r.h);
+  });
+  return { items, zones, minX, maxX, minY, maxY };
+}
+// ==LAYOUT-END==
+
+// ---------- Əsas proqram ----------
 const $ = (id) => document.getElementById(id);
-let token = null, code = null, view = null, selected = null, timer = null;
+const SESSION_KEY = "domino_session";
+let S = { code: null, token: null };
+let view = null, lastSig = "", selected = null, drag = null, pendingRender = false, timer = null;
+
+function showErr(m) { $("err").textContent = m || ""; }
 
 async function api(body) {
   const res = await fetch("/api/domino", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Xəta");
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { const e = new Error(data.error || "Xəta"); e.status = res.status; throw e; }
   return data;
+}
+
+function saveSession() { try { localStorage.setItem(SESSION_KEY, JSON.stringify(S)); } catch (e) {} }
+function clearSession() { try { localStorage.removeItem(SESSION_KEY); } catch (e) {} }
+
+function enter(data) {
+  S = { code: data.view.code, token: data.token || S.token };
+  saveSession();
+  clearInterval(timer);
+  timer = setInterval(poll, 1500);
+  applyView(data.view);
+}
+
+function leave(msg) {
+  clearInterval(timer); clearSession();
+  S = { code: null, token: null }; view = null; lastSig = ""; selected = null;
+  $("lobby").classList.remove("hidden");
+  ["wait", "table", "overlay", "chipCode", "chipRound", "btnLeave"].forEach((id) => $(id).classList.add("hidden"));
+  showErr(msg || "");
 }
 
 async function poll() {
   try {
-    const q = new URLSearchParams({ action: "state", code, token });
+    const q = new URLSearchParams({ action: "state", code: S.code, token: S.token });
     const res = await fetch("/api/domino?" + q);
     const data = await res.json();
-    if (res.ok) { view = data.view; render(); }
-  } catch (e) { /* növbəti cəhdi gözlə */ }
+    if (res.status === 404 || res.status === 403) return leave("Otaq tapılmadı (bitib və ya server yenilənib)");
+    if (res.ok) applyView(data.view);
+  } catch (e) { /* növbəti cəhd */ }
 }
 
-function enter(data) {
-  token = data.token; code = data.view.code; view = data.view;
-  $("lobby").classList.add("hidden");
-  $("game").classList.remove("hidden");
+function applyView(v) {
+  const sig = JSON.stringify(v);
+  if (sig === lastSig) return;
+  lastSig = sig; view = v;
+  if (drag) { pendingRender = true; return; }
   render();
-  timer = setInterval(poll, 1500);
-}
-
-const tileEl = (t) => `<div class="tile"><span>${t.a}</span><i></i><span>${t.b}</span></div>`;
-
-function render() {
-  $("err").textContent = "";
-  if (!view.started) {
-    $("info").textContent = `Otaq kodu: ${view.code} — rəqib gözlənilir...`;
-    $("opp").textContent = ""; $("board").innerHTML = ""; $("hand").innerHTML = "";
-    $("btnDraw").disabled = $("btnPass").disabled = true;
-    return;
-  }
-
-  const myTurn = view.status === "playing" && view.turn === view.you;
-  const oppIdx = 1 - view.you;
-
-  if (view.status === "finished") {
-    clearInterval(timer);
-    const why = view.reason === "blocked" ? " (oyun bloklandı)" : "";
-    $("info").textContent = view.winner === null ? "Bərabərlik!" :
-      (view.winner === view.you ? "🎉 Qazandın!" : "Məğlub oldun.") + why;
-  } else {
-    $("info").textContent = myTurn ? "Sənin sıran" : `${view.players[view.turn]} oynayır...`;
-  }
-
-  $("opp").textContent = `${view.players[oppIdx]}: ${view.handCounts[oppIdx]} daş | Bazar: ${view.boneyardCount}`;
-  $("board").innerHTML = view.board.map(tileEl).join("") || "<em>Masa boşdur</em>";
-
-  const playable = new Set(view.moves.map((m) => m.tileId));
-  $("hand").innerHTML = view.hand.map((t) => {
-    const cls = "tile" + (playable.has(t.id) ? " playable" : "") + (selected === t.id ? " selected" : "");
-    return `<div class="${cls}" data-id="${t.id}"><span>${t.a}</span><i></i><span>${t.b}</span></div>`;
-  }).join("");
-
-  // Seçilmiş daş hər iki tərəfə uyğundursa tərəf seçdir
-  const sides = selected === null ? [] : view.moves.filter((m) => m.tileId === selected);
-  $("sides").innerHTML = sides.length > 1
-    ? sides.map((m) => `<button data-side="${m.side}">${m.side === "left" ? "◀ Sola" : "Sağa ▶"}</button>`).join("")
-    : "";
-
-  const noMoves = myTurn && view.moves.length === 0;
-  $("btnDraw").disabled = !(noMoves && view.boneyardCount > 0);
-  $("btnPass").disabled = !(noMoves && view.boneyardCount === 0);
 }
 
 async function act(body) {
   try {
-    const data = await api({ code, token, ...body });
-    view = data.view; selected = null; render();
-  } catch (e) { $("err").textContent = e.message; }
+    const d = await api({ code: S.code, token: S.token, ...body });
+    selected = null;
+    lastSig = ""; applyView(d.view);
+    showErr("");
+  } catch (e) { showErr(e.message); }
 }
 
-$("hand").addEventListener("click", (e) => {
-  const el = e.target.closest(".tile"); if (!el || !view) return;
+// ---------- Render ----------
+function render() {
+  if (!view) return;
+  $("lobby").classList.add("hidden");
+  $("btnLeave").classList.remove("hidden");
+  $("chipCode").textContent = "Otaq: " + view.code; $("chipCode").classList.remove("hidden");
+
+  if (!view.started) {
+    $("table").classList.add("hidden"); $("overlay").classList.add("hidden");
+    $("chipRound").classList.add("hidden");
+    $("wait").classList.remove("hidden");
+    $("waitCode").textContent = view.code;
+    const np = view.players.length;
+    $("waitList").innerHTML = view.players.map((n, i) =>
+      `<li>${i + 1}. ${esc(n)}${i === view.you ? " (sən)" : ""}${i === 0 ? " 👑" : ""}${np === 4 ? ` — ${i % 2 === 0 ? "A" : "B"} tərəfi` : ""}</li>`).join("");
+    const okCount = np === 2 || np === 4;
+    $("btnStart").classList.toggle("hidden", !view.host);
+    $("btnStart").disabled = !okCount;
+    $("waitHint").textContent = view.host
+      ? (np < 2 ? "Ən azı 2 oyunçu lazımdır" : np === 3 ? "3 nəfərlə olmaz: 4-cü oyunçunu gözlə (2×2) və ya 2 nəfər ol" :
+         np === 2 ? "1×1 oynamaq üçün başlat (və ya 4-cü oyunçuya qədər gözlə)" : "2×2 komanda oyunu hazırdır")
+      : "Otağı yaradan oyunu başlatmağı gözləyin...";
+    return;
+  }
+
+  $("wait").classList.add("hidden"); $("table").classList.remove("hidden");
+  $("chipRound").textContent = `Raund ${view.round} · Hədəf ${view.target}` + (view.pot > 0 ? ` · Bonus +${view.pot}` : ""); $("chipRound").classList.remove("hidden");
+
+  const legal = new Set(view.moves.map((m) => m.tileId));
+  if (selected !== null && !legal.has(selected)) selected = null;
+
+  renderScores(); renderBoard(); renderHand(); renderActions(); renderOverlay();
+}
+
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+function sideName(i) {
+  return view.sides[i].map((seat) => esc(view.players[seat])).join(" + ");
+}
+
+function renderScores() {
+  const curSide = view.status === "playing" ? view.sides.findIndex((st) => st.includes(view.turn)) : -1;
+  let html = view.sides.map((seats, i) => {
+    const pct = Math.min(100, Math.round((view.scores[i] / view.target) * 100));
+    const mine = seats.includes(view.you);
+    let tags = "";
+    if (view.entered[i]) tags += `<span class="tag ok">✓ sayada</span>`;
+    else tags += `<span class="tag warn">saya: ${view.pending[i]}/${view.entry} · cəhd ${view.attempts[i]}/${view.entryAttempts}</span>`;
+    if (view.wins[i] > 0) tags += `<span class="tag">🏆 ${view.wins[i]} qələbə</span>`;
+    const players = seats.map((seat) => {
+      const cur = view.status === "playing" && view.turn === seat;
+      const backs = seat === view.you ? "" : '<div class="backs">' + '<div class="back"></div>'.repeat(view.handCounts[seat]) + "</div>";
+      return `<div class="pl${cur ? " cur" : ""}"><span>${cur ? "▶ " : ""}${esc(view.players[seat])}${seat === view.you ? " (sən)" : ""}</span>
+        <span>${seat === view.you ? view.handCounts[seat] + " daş" : ""}</span></div>${backs}`;
+    }).join("");
+    return `<div class="pcard${curSide === i ? " turn" : ""}">
+      <div class="pname">${mine ? "Sizin tərəf" : "Rəqib tərəf"}</div>
+      <div class="pscore">${view.scores[i]} <small>/ ${view.target}</small></div>
+      <div class="bar"><i style="width:${pct}%"></i></div>${tags}${players}</div>`;
+  }).join("");
+  $("scores").innerHTML = html;
+}
+
+function boardU(W) { return Math.max(16, Math.min(34, Math.floor((W - 40) / 17))); }
+
+function renderBoard() {
+  const el = $("board");
+  const W = el.clientWidth || 800;
+  const u = boardU(W);
+  const L = layoutBoard(view.board, view.origin || 0, W, u);
+  const padY = 16;
+  const H = Math.max(200, L.maxY - L.minY + padY * 2);
+  el.style.height = H + "px";
+  const px = (r) => `left:${r.x + W / 2}px;top:${r.y - L.minY + padY}px;width:${r.w}px;height:${r.h}px`;
+
+  let html = L.items.map((it) =>
+    `<div class="bt" style="${px(it)}">${tileSVG(it.l, it.r, it.vertical, it.w, it.h)}</div>`).join("");
+  Object.entries(L.zones).forEach(([side, r]) => { html += `<div class="zone" data-side="${side}" style="${px(r)}"></div>`; });
+  if (view.board.length === 0) html += `<div class="emptymsg">Masa boşdur — ilk daşı bura sürüşdür</div>`;
+  el.innerHTML = html;
+  if (selected !== null) showZones(selected);
+}
+
+function renderHand() {
+  const el = $("hand");
+  const vw = window.innerWidth;
+  const hu = vw < 380 ? 30 : vw < 520 ? 36 : 46;
+  const legal = new Set(view.moves.map((m) => m.tileId));
+  const myTurn = view.status === "playing" && view.turn === view.you;
+  const tiles = [...view.hand].sort((x, y) => x.a - y.a || x.b - y.b);
+  el.innerHTML = tiles.map((t) => {
+    const cls = "htile" + (legal.has(t.id) ? " play" : myTurn ? " dim" : "") + (selected === t.id ? " sel" : "");
+    return `<div class="${cls}" data-id="${t.id}">${tileSVG(t.a, t.b, true, hu, hu * 2)}</div>`;
+  }).join("") || "<em>Daşın qalmayıb</em>";
+}
+
+function renderActions() {
+  const myTurn = view.status === "playing" && view.turn === view.you;
+  const stuck = myTurn && view.moves.length === 0;
+  $("btnDraw").disabled = !(stuck && view.boneyardCount > 0);
+  $("btnDraw").textContent = `Bazardan çək (${view.boneyardCount})`;
+  $("btnPass").disabled = !(stuck && view.boneyardCount === 0);
+  let msg;
+  if (view.status === "finished") msg = "Raund bitdi";
+  else if (!myTurn) msg = `${view.players[view.turn]} oynayır...`;
+  else if (myTurn && view.opening !== null && view.board.length === 0) msg = "Oyun [1|1] qoşa daşı ilə başlayır — onu masaya sürüşdür";
+  else if (stuck) msg = view.boneyardCount > 0 ? "Gedişin yoxdur — bazardan daş çək" : "Gedişin yoxdur — pas keç";
+  else msg = "Sənin sıran — daşı masaya sürüşdür";
+  $("status").textContent = msg;
+  $("status").classList.toggle("mine", myTurn);
+}
+
+function renderOverlay() {
+  const ov = $("overlay");
+  if (view.status !== "finished" || !view.lastRound) { ov.classList.add("hidden"); return; }
+  const lr = view.lastRound;
+  const mySide = view.sides.findIndex((st) => st.includes(view.you));
+  let title, lines = [];
+
+  if (view.matchWinner !== null) {
+    const w = view.matchWinner;
+    title = w === mySide ? "🏆 Oyunu qazandınız!" : `🏆 ${sideName(w)} oyunu qazandı!`;
+    if (view.dry) lines.push(`<b>Quru məğlubiyyət:</b> rəqib heç xal toplamayıb — bu qələbə ${view.dryValue} qələbə kimi sayılır (+${view.dryValue}).`);
+  } else if (lr.tie) {
+    title = "Oyun bağlı gəldi — bərabərlik";
+    lines.push(`İki tərəfin də əlində ${lr.sideTotals[0]} xal qalıb. Bu xal növbəti raundun qalibinə əlavə olunacaq (bonus: <b>+${lr.potNow}</b>).`);
+  } else {
+    const w = lr.winnerSide;
+    title = w === mySide ? "🎉 Raundu qazandınız!" : `${sideName(w)} raundu qazandı`;
+    lines.push(lr.reason === "blocked"
+      ? "Oyun bağlı gəldi — əlində daşları az olan tərəf qazanır və rəqibin xalını götürür."
+      : "Daşlarını ilk bitirdi və rəqibin əlində qalan xalları götürdü.");
+    lines.push(`Xal: <b>+${lr.gained}</b>` + (lr.pot > 0 ? ` (raund ${lr.base} + keçən bonus ${lr.pot})` : ""));
+    if (lr.entered) lines.push(`✅ ${sideName(w)} sayaya düşdü (ən azı ${view.entry} xal).`);
+    else if (lr.reset) lines.push(`⚠️ ${sideName(w)} ${view.entryAttempts} cəhddə ${view.entry} xala çatmadı — toplanan xallar sıfırlandı.`);
+    else if (!view.entered[w]) lines.push(`ℹ️ ${sideName(w)} hələ sayaya düşməyib: ${lr.pending}/${view.entry} xal, cəhd ${lr.attempts}/${view.entryAttempts}.`);
+  }
+
+  const rows = view.players.map((n, i) => {
+    const sum = lr.hands[i].reduce((a, t) => a + t.a + t.b, 0);
+    return `<div class="rrow"><b>${esc(n)}</b>${i === view.you ? " (sən)" : ""} — əlində ${sum} xal
+      <div class="tiles">${lr.hands[i].map((t) => tileSVG(t.a, t.b, true, 20, 40)).join("") || "<em>daş qalmayıb</em>"}</div></div>`;
+  }).join("");
+  const board = view.sides.map((_, i) => `${sideName(i)}: <b>${view.scores[i]}</b>`).join(" &nbsp;|&nbsp; ");
+
+  $("modal").innerHTML = `<h2>${title}</h2>
+    <div style="margin-bottom:8px;color:var(--soft)">${lines.map((l) => `<div style="margin:4px 0">${l}</div>`).join("")}</div>
+    <div class="rrow">Hesab (hədəf ${view.target}): ${board}</div>${rows}
+    <div class="row" style="justify-content:flex-end"><button id="btnNext">${view.matchWinner !== null ? "Yeni oyun" : "Növbəti raund"}</button></div>`;
+  ov.classList.remove("hidden");
+  $("btnNext").onclick = () => act({ action: "next", round: view.round });
+}
+
+// ---------- Sürüşdürmə (drag & drop) ----------
+function showZones(tileId) {
+  const sides = new Set(view.moves.filter((m) => m.tileId === tileId).map((m) => m.side));
+  document.querySelectorAll(".zone").forEach((z) => z.classList.toggle("show", sides.has(z.dataset.side)));
+}
+function hideZones() { document.querySelectorAll(".zone").forEach((z) => z.classList.remove("show", "hot")); }
+
+function pickZone(e) {
+  const br = $("board").getBoundingClientRect();
+  if (e.clientX < br.left - 30 || e.clientX > br.right + 30 || e.clientY < br.top - 60 || e.clientY > br.bottom + 30) return null;
+  let best = null, bd = Infinity;
+  document.querySelectorAll(".zone.show").forEach((z) => {
+    const r = z.getBoundingClientRect();
+    const d = Math.hypot(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
+    if (d < bd) { bd = d; best = z; }
+  });
+  return best;
+}
+
+$("hand").addEventListener("pointerdown", (e) => {
+  const el = e.target.closest(".htile");
+  if (!el || !view || view.status !== "playing" || view.turn !== view.you) return;
   const id = Number(el.dataset.id);
   const moves = view.moves.filter((m) => m.tileId === id);
-  if (moves.length === 0) return;
-  if (moves.length === 1) return act({ action: "play", tileId: id, side: moves[0].side });
-  selected = id; render();
+  if (!moves.length) return;
+  e.preventDefault();
+  drag = { id, el, moves, sx: e.clientX, sy: e.clientY, moved: false, ghost: null, pid: e.pointerId };
 });
 
-$("sides").addEventListener("click", (e) => {
-  const b = e.target.closest("button"); if (!b || selected === null) return;
-  act({ action: "play", tileId: selected, side: b.dataset.side });
+window.addEventListener("pointermove", (e) => {
+  if (!drag || e.pointerId !== drag.pid) return;
+  if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 6) {
+    drag.moved = true;
+    drag.ghost = drag.el.cloneNode(true);
+    drag.ghost.className = "ghost";
+    document.body.appendChild(drag.ghost);
+    drag.el.classList.add("ghosted");
+    showZones(drag.id);
+  }
+  if (drag.moved) {
+    drag.ghost.style.left = e.clientX + "px"; drag.ghost.style.top = e.clientY + "px";
+    const hot = pickZone(e);
+    document.querySelectorAll(".zone").forEach((z) => z.classList.toggle("hot", z === hot));
+  }
 });
 
+function endDrag(e, cancelled) {
+  if (!drag || e.pointerId !== drag.pid) return;
+  const d = drag; drag = null;
+  if (d.ghost) d.ghost.remove();
+  if (!cancelled) {
+    if (d.moved) {
+      const z = pickZone(e);
+      hideZones();
+      if (z) act({ action: "play", tileId: d.id, side: z.dataset.side });
+    } else if (d.moves.length === 1) {
+      act({ action: "play", tileId: d.id, side: d.moves[0].side });
+    } else {
+      selected = d.id; renderHand(); showZones(d.id);
+    }
+  } else hideZones();
+  if (pendingRender) { pendingRender = false; render(); } else if (d.moved) renderHand();
+}
+window.addEventListener("pointerup", (e) => endDrag(e, false));
+window.addEventListener("pointercancel", (e) => endDrag(e, true));
+
+$("board").addEventListener("click", (e) => {
+  const z = e.target.closest(".zone");
+  if (!z || !z.classList.contains("show") || selected === null) return;
+  act({ action: "play", tileId: selected, side: z.dataset.side });
+});
+
+// ---------- Düymələr ----------
 $("btnDraw").onclick = () => act({ action: "draw" });
 $("btnPass").onclick = () => act({ action: "pass" });
-
+$("btnStart").onclick = () => act({ action: "start" });
+$("btnLeave").onclick = () => leave("");
+$("btnCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText(view.code); $("btnCopy").textContent = "Kopyalandı ✓"; }
+  catch (e) { $("btnCopy").textContent = view.code; }
+  setTimeout(() => { $("btnCopy").textContent = "Kopyala"; }, 1800);
+};
 $("btnCreate").onclick = async () => {
-  try { enter(await api({ action: "create", name: $("name").value })); }
-  catch (e) { $("err").textContent = e.message; }
+  try { enter(await api({ action: "create", name: $("name").value })); showErr(""); } catch (e) { showErr(e.message); }
 };
 $("btnJoin").onclick = async () => {
-  try { enter(await api({ action: "join", name: $("name").value, code: $("code").value })); }
-  catch (e) { $("err").textContent = e.message; }
+  try { enter(await api({ action: "join", name: $("name").value, code: $("code").value })); showErr(""); } catch (e) { showErr(e.message); }
 };
+$("code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btnJoin").click(); });
+$("name").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btnCreate").click(); });
+
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if (view && view.started && !drag) { renderBoard(); renderHand(); } }, 150); });
+window.addEventListener("orientationchange", () => setTimeout(() => { if (view && view.started && !drag) { renderBoard(); renderHand(); } }, 250));
+
+// Səhifə yenilənəndə oyuna qayıt
+(async function resume() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+    if (!s || !s.code || !s.token) return;
+    const q = new URLSearchParams({ action: "state", code: s.code, token: s.token });
+    const res = await fetch("/api/domino?" + q);
+    if (!res.ok) return clearSession();
+    S = s; enter({ view: (await res.json()).view });
+  } catch (e) {}
+})();
 </script>
 </body>
 </html>
